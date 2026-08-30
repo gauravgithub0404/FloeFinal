@@ -1,0 +1,124 @@
+import { IntermediateRepresentation } from './floe';
+
+export type PipelineStageId = 
+  | 'stage_1_spec'
+  | 'stage_2_ir'
+  | 'stage_3_codegen'
+  | 'stage_4_testing'
+  | 'stage_5_security'
+  | 'stage_6_sbom'
+  | 'stage_7_governance_gate'
+  | 'stage_8_deploy_test'
+  | 'stage_9_dast'
+  | 'stage_10_final_gate';
+
+export type StageStatus = 'pending' | 'running' | 'passed' | 'warning' | 'failed' | 'skipped';
+
+export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
+
+export interface SecurityFinding {
+  id: string;
+  tool: 'Semgrep' | 'Trivy' | 'Gitleaks' | 'Dependency' | 'OWASP ZAP' | 'Devzy';
+  category: 'SAST' | 'Container' | 'Secret' | 'Dependency' | 'DAST' | 'Compliance';
+  severity: SeverityLevel;
+  ruleId: string;
+  title: string;
+  description: string;
+  file?: string;
+  line?: number;
+  url?: string;
+  remediation?: string;
+}
+
+export interface TestResultItem {
+  id: string;
+  name: string;
+  type: 'unit' | 'api' | 'e2e';
+  status: 'passed' | 'failed' | 'skipped';
+  durationMs: number;
+  details?: string;
+}
+
+export interface SbomComponent {
+  name: string;
+  version: string;
+  type: 'library' | 'framework' | 'container-base' | 'runtime';
+  purl: string;
+  license: string;
+  vulnerabilitiesCount: number;
+}
+
+export interface SbomReport {
+  bomFormat: 'CycloneDX' | 'SPDX';
+  specVersion: string;
+  serialNumber: string;
+  timestamp: string;
+  components: SbomComponent[];
+  totalDependencies: number;
+  totalDirect: number;
+  licensesFound: string[];
+}
+
+export interface GovernancePolicyConfig {
+  blockOnCritical: boolean;
+  blockOnHigh: boolean;
+  blockOnMedium: boolean;
+  allowWarnOnLow: boolean;
+  requireSbom: boolean;
+  requireZeroSecrets: boolean;
+  requireMinTestCoveragePct: number;
+  requireDastClean: boolean;
+}
+
+export interface PipelineStageResult {
+  id: PipelineStageId;
+  stageNumber: number;
+  name: string;
+  description: string;
+  status: StageStatus;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  summary: string;
+  logs: string[];
+  findings?: SecurityFinding[];
+  testResults?: TestResultItem[];
+  sbom?: SbomReport;
+  metrics?: Record<string, string | number | boolean>;
+}
+
+export interface PipelineInstance {
+  id: string;
+  appId: string;
+  appName: string;
+  domain: string;
+  irVersion: string;
+  commitSha: string;
+  status: 'idle' | 'running' | 'passed' | 'failed' | 'blocked';
+  currentStageId: PipelineStageId;
+  policyConfig: GovernancePolicyConfig;
+  stages: Record<PipelineStageId, PipelineStageResult>;
+  artifact: {
+    imageDigest?: string;
+    imageTag?: string;
+    registryUrl?: string;
+    sbomDigest?: string;
+    promotedToProduction: boolean;
+    promotedAt?: string;
+    promotedTarget?: 'aws' | 'azure' | 'gcp' | 'on_prem';
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Pluggable Provider Registry Architecture
+export interface PluggableProviderInfo {
+  category: 'SAST' | 'ContainerScanner' | 'SecretScanner' | 'DependencyScanner' | 'DAST' | 'TestRunner' | 'SBOMGenerator' | 'ExternalValidator';
+  activeProvider: string;
+  availableProviders: Array<{
+    name: string;
+    description: string;
+    version: string;
+    status: 'active' | 'configured' | 'available';
+  }>;
+}

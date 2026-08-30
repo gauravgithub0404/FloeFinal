@@ -14,7 +14,7 @@ interface DocsViewerProps {
 export const DocsViewer: React.FC<DocsViewerProps> = ({ ir }) => {
   const docs = synthesizeDocumentation(ir);
   const [activeTab, setActiveTab] = useState<'architecture' | 'contract' | 'eval_gate' | 'hld' | 'lld' | 'readme'>('architecture');
-  const [activeDiagram, setActiveDiagram] = useState<'lifecycle' | 'pipeline' | 'deployment' | 'runtime'>('pipeline');
+  const [activeDiagram, setActiveDiagram] = useState<'pipeline' | 'providers' | 'lifecycle' | 'deployment' | 'runtime'>('pipeline');
 
   // Derive execution classifications from workflow nodes
   const nodes = ir.workflows[0]?.nodes || [];
@@ -145,10 +145,11 @@ export const DocsViewer: React.FC<DocsViewerProps> = ({ ir }) => {
               </div>
               <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
                 {[
-                  { key: 'lifecycle', label: 'Diagram 1: Product Lifecycle' },
-                  { key: 'pipeline', label: 'Diagram 2: Generation Pipeline' },
-                  { key: 'deployment', label: 'Diagram 3: Deployment Manager' },
-                  { key: 'runtime', label: 'Diagram 4: Runtime Architecture' }
+                  { key: 'pipeline', label: '1. Standardized CI/CD Engine' },
+                  { key: 'providers', label: '2. Pluggable Scanner Providers' },
+                  { key: 'lifecycle', label: '3. Product Lifecycle' },
+                  { key: 'deployment', label: '4. Artifact Promotion' },
+                  { key: 'runtime', label: '5. Runtime Architecture' }
                 ].map(d => (
                   <button
                     key={d.key}
@@ -166,10 +167,118 @@ export const DocsViewer: React.FC<DocsViewerProps> = ({ ir }) => {
             {/* Render Selected Diagram */}
             <div className="p-6 rounded-2xl bg-slate-950 text-slate-100 border border-slate-800 font-mono text-xs shadow-inner">
               
-              {activeDiagram === 'lifecycle' && (
+              {activeDiagram === 'pipeline' && (
                 <div className="space-y-4">
                   <div className="text-indigo-400 font-bold text-sm">
-                    Diagram 1 — Floe Product Development Lifecycle
+                    Diagram 1 — Floe Standardized 10-Stage CI/CD Pipeline Engine
+                  </div>
+                  <p className="text-slate-400 text-xs font-sans">
+                    Every generated application passes through the same automated 10-stage quality, security, compliance, and deployment pipeline.
+                  </p>
+                  <pre className="bg-slate-900 p-4 rounded-xl text-indigo-300 overflow-x-auto leading-relaxed">
+{`                       FLOE APPLICATION
+                              │
+                              ▼
+                      Source Repository
+                              │
+                              ▼
+               ┌──────────────────────────────┐
+               │    FLOE CI/CD & EVAL ENGINE  │
+               └──────────────┬───────────────┘
+                              │
+          ┌───────────────────┴───────────────────┐
+          ▼                                       ▼
+    Stage 1: Validate Spec                  Stage 2: Validate IR
+    (Entities, Roles, Workflows)            (Schema, FKs, Permissions)
+          │                                       │
+          └───────────────────┬───────────────────┘
+                              ▼
+                    Stage 3: Build Application
+                    (React UI, Express REST, DDL, Docker)
+                              │
+                              ▼
+                    Stage 4: Automated Testing
+                    (Unit Tests, REST API, Playwright E2E)
+                              │
+                              ▼
+                    Stage 5: Security Scans
+                    (Semgrep SAST, Trivy CVEs, Gitleaks)
+                              │
+                              ▼
+                    Stage 6: Generate SBOM
+                    (Syft CycloneDX 1.5 JSON & License Audit)
+                              │
+                              ▼
+               ┌──────────────────────────────┐
+               │   Stage 7: GOVERNANCE GATE   │
+               │   (Critical/High: BLOCK)     │
+               └──────────────┬───────────────┘
+                              │
+                              ▼ PASS
+                    Stage 8: Deploy TEST (Render Free Tier)
+                    (Web Service + PostgreSQL 15, GET /api/health)
+                              │
+                              ▼
+                    Stage 9: Dynamic DAST (OWASP ZAP)
+                    (Active Penetration Scan on Live URL)
+                              │
+                              ▼
+               ┌──────────────────────────────┐
+               │   Stage 10: FINAL TEST GATE  │
+               └──────────────┬───────────────┘
+                              │
+                              ▼
+                    User Acceptance Testing
+                              │
+                              ▼
+                    Promote Same Tested Artifact (AWS/Azure/GCP/On-Prem)`}
+                  </pre>
+                </div>
+              )}
+
+              {activeDiagram === 'providers' && (
+                <div className="space-y-4">
+                  <div className="text-emerald-400 font-bold text-sm">
+                    Diagram 2 — Floe Pluggable Provider Architecture
+                  </div>
+                  <p className="text-slate-400 text-xs font-sans">
+                    Floe owns the pipeline orchestration, while security scanners, test runners, and DAST tools are modular provider implementations.
+                  </p>
+                  <pre className="bg-slate-900 p-4 rounded-xl text-emerald-400 overflow-x-auto leading-relaxed">
+{`                 FLOE CI/CD ORCHESTRATOR
+                            │
+       ┌────────────────────┼────────────────────┐
+       ▼                    ▼                    ▼
+ Functional              Security             Governance
+ Evaluation              Evaluation           Evaluation
+       │                    │                    │
+ ┌─────┴──────┐       ┌─────┴──────┐       ┌─────┴──────┐
+ │ Test Runner│       │  Scanner   │       │  Policy    │
+ │ (Vitest /  │       │ Interfaces │       │  Engine    │
+ │ Playwright)│       │            │       │ (Threshold)│
+ └────────────┘       └─────┬──────┘       └────────────┘
+                            │
+      ┌─────────────┬───────┴─────┬─────────────┬─────────────┐
+      ▼             ▼             ▼             ▼             ▼
+ SAST Provider  Dependency    Secret Scanner Container    DAST Provider
+  (Semgrep)     & Package      (Gitleaks)    Scanner       (OWASP ZAP)
+                 (Trivy)                     (Trivy)
+                                                │
+                                                ▼
+                                         SBOM Generator
+                                            (Syft)
+                                                │
+                                                ▼
+                                   External Validation Provider
+                                            (Devzy.ai)`}
+                  </pre>
+                </div>
+              )}
+
+              {activeDiagram === 'lifecycle' && (
+                <div className="space-y-4">
+                  <div className="text-emerald-400 font-bold text-sm">
+                    Diagram 3 — Floe Product Development Lifecycle
                   </div>
                   <p className="text-slate-400 text-xs font-sans">
                     Separates the human-centric product creation and iteration loop from underlying server infrastructure.
@@ -197,72 +306,29 @@ Production    (Cost-modeled architecture plan & gated deployment)`}
                 </div>
               )}
 
-              {activeDiagram === 'pipeline' && (
-                <div className="space-y-4">
-                  <div className="text-indigo-400 font-bold text-sm">
-                    Diagram 2 — Application Generation & Polarizer Pipeline
-                  </div>
-                  <p className="text-slate-400 text-xs font-sans">
-                    The core transformation pipeline taking ambiguous natural language into a strict, validated, testable IR and compiled artifact.
-                  </p>
-                  <pre className="bg-slate-900 p-4 rounded-xl text-indigo-300 overflow-x-auto leading-relaxed">
-{`Natural Language Intent
-       │
-       ▼
-Requirements Agent (Fact extraction & disambiguation)
-       │
-       ▼
-Specification & Application Contract
-       │
-       ▼
-Intermediate Representation (IR v${ir.ir_version})
-       │
-       ▼
-┌────────────────────────────────────────────────────────┐
-│ POLARIZER (Step Execution Mode Classification)          │
-│                                                        │
-│   Workflow Node Classification:                        │
-│   ├── Deterministic (${deterministicCount})  ──► RecordService.transition()   │
-│   ├── AI Assistance (${aiCount})  ──► Bounded prompt contract   │
-│   ├── Agentic (${aiCount})        ──► Autonomous tool execution │
-│   └── Human Action (${humanCount})     ──► Inbox & approval SLA      │
-└────────────────────────────────────────────────────────┘
-       │
-       ▼
-Compiler & Code Generator (SQL DDL, RecordService, Express, Docker)
-       │
-       ▼
-Immutable Artifact Store (Source, IR, Manifests, SBOM, Tests)
-       │
-       ▼
-EVALUATION HARD GATE (12-point automated verification suite)
-       │
-       ▼
-Deployment Manager ──► Free Testbed / Gated Production`}
-                  </pre>
-                </div>
-              )}
-
               {activeDiagram === 'deployment' && (
                 <div className="space-y-4">
-                  <div className="text-indigo-400 font-bold text-sm">
-                    Diagram 3 — Deployment Manager & Multi-Target Architecture
+                  <div className="text-amber-300 font-bold text-sm">
+                    Diagram 4 — Immutable Artifact Promotion Flow
                   </div>
                   <p className="text-slate-400 text-xs font-sans">
-                    Decoupled target abstraction supporting immediate free testing and cost-modeled enterprise production targets.
+                    Production does not regenerate source code. The exact tested Docker image digest is promoted directly to production targets.
                   </p>
                   <pre className="bg-slate-900 p-4 rounded-xl text-amber-300 overflow-x-auto leading-relaxed">
-{`                                DeploymentManager
-                                        │
-        ┌───────────────────────────────┼───────────────────────────────┐
-        ▼                               ▼                               ▼
-Render Testbed Provider         AWS Cloud Provider             On-Premises Provider
-(Free ₹0 Test Sandbox)        (Amazon ECS + RDS PG)           (Docker Engine + Linux)
-        │                               │                               │
-        ▼                               ▼                               ▼
-• Instant ephemeral testbed    • Multi-AZ High Availability    • Zero cloud egress cost
-• Free PostgreSQL 15 DB        • Automated Daily Backups       • 100% air-gapped data
-• GET /api/health verification • CloudWatch Observability      • Tailscale private mesh`}
+{`                   IDENTICAL TESTED ARTIFACT
+                     (sha256:4a8f9c... digest)
+                                │
+               ┌────────────────┴────────────────┐
+               ▼                                 ▼
+       TEST ENVIRONMENT                PRODUCTION ENVIRONMENT
+         (Render Free)                     (Multi-Cloud)
+               │                                 │
+     • Free Web Service                • AWS (ECS/RDS)
+     • Free PostgreSQL 15              • Azure (App Service)
+     • DAST / OWASP ZAP                • GCP (Cloud Run)
+     • User Acceptance Loop            • Air-Gapped On-Prem
+                                                 │
+                                       (Promoted Without Rebuilding)`}
                   </pre>
                 </div>
               )}
@@ -270,7 +336,7 @@ Render Testbed Provider         AWS Cloud Provider             On-Premises Provi
               {activeDiagram === 'runtime' && (
                 <div className="space-y-4">
                   <div className="text-indigo-400 font-bold text-sm">
-                    Diagram 4 — Runtime Dual-Engine Architecture
+                    Diagram 5 — Runtime Dual-Engine Architecture
                   </div>
                   <p className="text-slate-400 text-xs font-sans">
                     Isolates deterministic business operations from AI inference steps with atomic database transactions and strict audit logging.

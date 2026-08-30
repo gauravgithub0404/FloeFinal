@@ -13,7 +13,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
   onStartNewApp
 }) => {
   const [activeView, setActiveView] = useState<'quickstart' | 'architecture'>('quickstart');
-  const [selectedDiagram, setSelectedDiagram] = useState<'lifecycle' | 'pipeline' | 'deployment' | 'runtime'>('pipeline');
+  const [selectedDiagram, setSelectedDiagram] = useState<'pipeline' | 'providers' | 'lifecycle' | 'deployment' | 'runtime'>('pipeline');
 
   if (!isOpen) return null;
 
@@ -160,10 +160,11 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
             {/* Diagram Buttons */}
             <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1 rounded-xl text-xs">
               {[
-                { key: 'lifecycle', label: '1. Product Lifecycle' },
-                { key: 'pipeline', label: '2. Generation Pipeline' },
-                { key: 'deployment', label: '3. Deployment Architecture' },
-                { key: 'runtime', label: '4. Runtime Architecture' }
+                { key: 'pipeline', label: '1. CI/CD Pipeline Engine' },
+                { key: 'providers', label: '2. Pluggable Providers' },
+                { key: 'lifecycle', label: '3. Product Lifecycle' },
+                { key: 'deployment', label: '4. Artifact Promotion' },
+                { key: 'runtime', label: '5. Runtime Architecture' }
               ].map(d => (
                 <button
                   key={d.key}
@@ -178,10 +179,106 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
             </div>
 
             {/* Terminal Display */}
-            <div className="p-4 rounded-xl bg-slate-950 text-slate-100 font-mono text-xs max-h-72 overflow-y-auto">
+            <div className="p-4 rounded-xl bg-slate-950 text-slate-100 font-mono text-xs max-h-80 overflow-y-auto">
+              {selectedDiagram === 'pipeline' && (
+                <pre className="text-indigo-300 leading-relaxed">
+{`Diagram 1 — Floe Standardized 10-Stage CI/CD Pipeline Engine
+
+                       FLOE APPLICATION
+                              │
+                              ▼
+                      Source Repository
+                              │
+                              ▼
+               ┌──────────────────────────────┐
+               │    FLOE CI/CD & EVAL ENGINE  │
+               └──────────────┬───────────────┘
+                              │
+          ┌───────────────────┴───────────────────┐
+          ▼                                       ▼
+    Stage 1: Validate Spec                  Stage 2: Validate IR
+    (Entities, Roles, Workflows)            (Schema, FKs, Permissions)
+          │                                       │
+          └───────────────────┬───────────────────┘
+                              ▼
+                    Stage 3: Build Application
+                    (React UI, Express REST, DDL, Docker)
+                              │
+                              ▼
+                    Stage 4: Automated Testing
+                    (Unit Tests, REST API, Playwright E2E)
+                              │
+                              ▼
+                    Stage 5: Security Scans
+                    (Semgrep SAST, Trivy CVEs, Gitleaks)
+                              │
+                              ▼
+                    Stage 6: Generate SBOM
+                    (Syft CycloneDX 1.5 JSON & License Audit)
+                              │
+                              ▼
+               ┌──────────────────────────────┐
+               │   Stage 7: GOVERNANCE GATE   │
+               │   (Critical/High: BLOCK)     │
+               └──────────────┬───────────────┘
+                              │
+                              ▼ PASS
+                    Stage 8: Deploy TEST (Render Free Tier)
+                    (Web Service + PostgreSQL 15, GET /api/health)
+                              │
+                              ▼
+                    Stage 9: Dynamic DAST (OWASP ZAP)
+                    (Active Penetration Scan on Live URL)
+                              │
+                              ▼
+               ┌──────────────────────────────┐
+               │   Stage 10: FINAL TEST GATE  │
+               └──────────────┬───────────────┘
+                              │
+                              ▼
+                    User Acceptance Testing
+                              │
+                              ▼
+                    Promote Same Tested Artifact (AWS/Azure/GCP/On-Prem)`}
+                </pre>
+              )}
+
+              {selectedDiagram === 'providers' && (
+                <pre className="text-emerald-400 leading-relaxed">
+{`Diagram 2 — Floe Pluggable Provider Architecture
+
+                 FLOE CI/CD ORCHESTRATOR
+                            │
+       ┌────────────────────┼────────────────────┐
+       ▼                    ▼                    ▼
+ Functional              Security             Governance
+ Evaluation              Evaluation           Evaluation
+       │                    │                    │
+ ┌─────┴──────┐       ┌─────┴──────┐       ┌─────┴──────┐
+ │ Test Runner│       │  Scanner   │       │  Policy    │
+ │ (Vitest /  │       │ Interfaces │       │  Engine    │
+ │ Playwright)│       │            │       │ (Threshold)│
+ └────────────┘       └─────┬──────┘       └────────────┘
+                            │
+      ┌─────────────┬───────┴─────┬─────────────┬─────────────┐
+      ▼             ▼             ▼             ▼             ▼
+ SAST Provider  Dependency    Secret Scanner Container    DAST Provider
+  (Semgrep)     & Package      (Gitleaks)    Scanner       (OWASP ZAP)
+                 (Trivy)                     (Trivy)
+                                                │
+                                                ▼
+                                         SBOM Generator
+                                            (Syft)
+                                                │
+                                                ▼
+                                   External Validation Provider
+                                            (Devzy.ai)`}
+                </pre>
+              )}
+
               {selectedDiagram === 'lifecycle' && (
                 <pre className="text-emerald-400 leading-relaxed">
-{`Diagram 1 — Floe Product Lifecycle
+{`Diagram 3 — Floe Product Lifecycle
 
 Problem
    │
@@ -204,54 +301,30 @@ Production    (Cost-modeled architecture plan & gated deployment)`}
                 </pre>
               )}
 
-              {selectedDiagram === 'pipeline' && (
-                <pre className="text-indigo-300 leading-relaxed">
-{`Diagram 2 — Application Generation Pipeline
-
-Natural Language
-       │
-       ▼
-Requirements Agent
-       │
-       ▼
-Specification & Application Contract
-       │
-       ▼
-Intermediate Representation (IR v1.0.0)
-       │
-       ▼
-Polarizer (Execution Classification: Deterministic vs AI vs Agentic vs Human)
-       │
-       ▼
-Compiler / Code Generator (DDL, RecordService, WorkflowEngine, Express)
-       │
-       ▼
-Immutable Artifact Store (Source, IR, Dockerfile, SBOM, Tests)
-       │
-       ▼
-Evaluation Hard Gate (12-Point Quality, Security & Schema Suite)
-       │
-       ▼
-Deployment Approval & Free Testbed`}
-                </pre>
-              )}
-
               {selectedDiagram === 'deployment' && (
                 <pre className="text-amber-300 leading-relaxed">
-{`Diagram 3 — Deployment Architecture
+{`Diagram 4 — Immutable Artifact Promotion Flow
 
-                    Deployment Manager
-                           │
-              ┌────────────┼─────────────┐
-              ▼            ▼             ▼
-          Render.com      AWS          On-Prem
-        (Free Testbed) (Production)  (Production)`}
+                   IDENTICAL TESTED ARTIFACT
+                     (sha256:4a8f9c... digest)
+                                │
+               ┌────────────────┴────────────────┐
+               ▼                                 ▼
+       TEST ENVIRONMENT                PRODUCTION ENVIRONMENT
+         (Render Free)                     (Multi-Cloud)
+               │                                 │
+     • Free Web Service                • AWS (ECS/RDS)
+     • Free PostgreSQL 15              • Azure (App Service)
+     • DAST / OWASP ZAP                • GCP (Cloud Run)
+     • User Acceptance Loop            • Air-Gapped On-Prem
+                                                 │
+                                       (Promoted Without Rebuilding)`}
                 </pre>
               )}
 
               {selectedDiagram === 'runtime' && (
                 <pre className="text-cyan-300 leading-relaxed">
-{`Diagram 4 — Runtime Architecture
+{`Diagram 5 — Runtime Architecture
 
                    Application Gateway (:4000)
                               │

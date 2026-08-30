@@ -3,10 +3,11 @@ import { IntermediateRepresentation } from '../types/floe';
 import { DeploymentStatus, DeploymentStage } from '../types/deployment';
 import { deploymentManager } from '../engine/deployment/DeploymentManager';
 import { LiveAppSandbox } from './LiveAppSandbox';
+import { FloePipelineDashboard } from './pipeline/FloePipelineDashboard';
 import { 
   Play, CheckCircle2, Clock, AlertTriangle, ExternalLink, RefreshCw, 
   Terminal, Shield, Database, Cpu, Globe, ArrowRight, Check, Copy, Zap,
-  QrCode, Share2, Sparkles, Send, Smartphone, Monitor
+  QrCode, Share2, Sparkles, Send, Smartphone, Monitor, Layers, ShieldCheck
 } from 'lucide-react';
 
 interface TestEnvironmentViewProps {
@@ -50,7 +51,7 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [logs, setLogs] = useState<string[]>([]);
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'app_testbed' | 'api_tester' | 'logs'>('app_testbed');
+  const [activeSubTab, setActiveSubTab] = useState<'pipeline' | 'app_testbed' | 'api_tester' | 'logs'>('pipeline');
   const [showShareModal, setShowShareModal] = useState(false);
   
   // API Tester State
@@ -418,9 +419,20 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
               </div>
             </div>
 
-            {/* Sub-tab Switcher for Live Testbed vs API Tester vs Logs */}
+            {/* Sub-tab Switcher for Pipeline vs Live Testbed vs API Tester vs Logs */}
             <div className="flex items-center justify-between border-b border-slate-200 pt-2">
               <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setActiveSubTab('pipeline')}
+                  className={`pb-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeSubTab === 'pipeline'
+                      ? 'border-indigo-600 text-indigo-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>CI/CD & Governance Pipeline (10 Stages)</span>
+                </button>
                 <button
                   onClick={() => setActiveSubTab('app_testbed')}
                   className={`pb-2.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -452,7 +464,7 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Deployment & Telemetry Logs ({logs.length})</span>
+                  <span>Deployment Logs ({logs.length})</span>
                 </button>
               </div>
 
@@ -464,6 +476,17 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
                 <span>Redeploy Testbed</span>
               </button>
             </div>
+
+            {/* Sub-tab: Floe CI/CD Pipeline Dashboard */}
+            {activeSubTab === 'pipeline' && (
+              <div className="space-y-4">
+                <FloePipelineDashboard
+                  ir={ir}
+                  appName={appName}
+                  onGoToProduction={onGoToProduction}
+                />
+              </div>
+            )}
 
             {/* Sub-tab: App Testbed */}
             {activeSubTab === 'app_testbed' && (
