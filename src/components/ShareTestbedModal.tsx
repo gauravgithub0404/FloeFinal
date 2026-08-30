@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Info
 } from 'lucide-react';
-import { getPublicTestbedUrl, getLocalTestbedUrl, getRenderCloudUrl, isLocalhost, PUBLIC_SHARED_HOST } from '../utils/urlHelper';
+import { getPublicTestbedUrl, getLocalTestbedUrl, getRenderCloudUrl, isLocalhost } from '../utils/urlHelper';
 
 interface ShareTestbedModalProps {
   isOpen: boolean;

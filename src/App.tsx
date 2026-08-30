@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FloeApp, IntermediateRepresentation, GenerationRun, AgentExecution, AuditLogEntry } from './types/floe';
-import { LEAVE_MANAGEMENT_IR, EXPENSE_MANAGEMENT_IR } from './data/domains';
+import { LEAVE_MANAGEMENT_IR, EXPENSE_MANAGEMENT_IR, IT_SERVICE_DESK_IR, IT_EQUIPMENT_IR, DOMAINS } from './data/domains';
 import { Navbar } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
 import { RequirementsChat } from './components/RequirementsChat';
@@ -30,8 +30,24 @@ export default function App() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const isTestbedParam = params.get('testbed') || params.get('mode') === 'testbed' || window.location.hash.includes('testbed');
-      if (isTestbedParam) {
+      const testbedParam = params.get('testbed');
+      const isTestbedMode = Boolean(testbedParam) || params.get('mode') === 'testbed' || window.location.hash.includes('testbed');
+      
+      if (isTestbedMode) {
+        if (testbedParam) {
+          const matched = DOMAINS.find(d => d.key === testbedParam || d.id === testbedParam || d.key.toLowerCase() === testbedParam.toLowerCase());
+          if (matched?.default_ir) {
+            setCandidateIr(matched.default_ir);
+          } else if (testbedParam.toLowerCase().includes('expense')) {
+            setCandidateIr(EXPENSE_MANAGEMENT_IR);
+          } else if (testbedParam.toLowerCase().includes('ticket') || testbedParam.toLowerCase().includes('service')) {
+            setCandidateIr(IT_SERVICE_DESK_IR);
+          } else if (testbedParam.toLowerCase().includes('equipment') || testbedParam.toLowerCase().includes('hardware')) {
+            setCandidateIr(IT_EQUIPMENT_IR);
+          } else {
+            setCandidateIr(LEAVE_MANAGEMENT_IR);
+          }
+        }
         setCurrentView('standalone_testbed');
       }
     }
