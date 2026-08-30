@@ -1,0 +1,6 @@
+{
+  "name": "Floe Application Platform",
+  "description": "Enterprise requirements-to-application builder with deterministic database compilation, multi-mode workflow IR, and automated delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
