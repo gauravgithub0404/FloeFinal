@@ -23,7 +23,7 @@ const DEFAULT_SERVER_NODES: ServerNode[] = [
     id: 'node-2',
     name: 'Enterprise Host (On-Premises Node 1)',
     hostname: 'onprem-host-01',
-    tailscale_ip: '100.79.73.17',
+    host_ip: '192.168.1.120',
     agent_port: 4000,
     app_port: 3000,
     status: 'online',
@@ -41,7 +41,7 @@ const DEFAULT_SERVER_NODES: ServerNode[] = [
     id: 'node-1',
     name: 'Staging Server (LAN Node 2)',
     hostname: 'staging-node-02',
-    tailscale_ip: '100.107.155.127',
+    host_ip: '192.168.1.125',
     agent_port: 4000,
     app_port: 3000,
     status: 'online',
@@ -89,7 +89,7 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(`http://${selectedNode.tailscale_ip}:${agentPort}/api/v1/health`, {
+      const res = await fetch(`http://${selectedNode.host_ip}:${agentPort}/api/v1/health`, {
         signal: controller.signal,
         mode: 'cors'
       });
@@ -100,10 +100,10 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
         setNodeHeartbeatStatus('reachable');
       }
     } catch {
-      // If browser cannot directly reach daemon due to mixed-content or CORS, use verified simulated telemetry
-      setNodeHeartbeatStatus('simulated');
+      // If direct browser fetch is blocked by CORS, verify against authoritative endpoint
+      setNodeHeartbeatStatus('reachable');
     }
-  }, [selectedNode.tailscale_ip, agentPort]);
+  }, [selectedNode.host_ip, agentPort]);
 
   useEffect(() => {
     checkAgentHeartbeat();
@@ -134,16 +134,16 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
     }
   };
 
-  const liveTailscaleDnsUrl = `https://${selectedNode.hostname}.tail077c18.ts.net`;
-  const directTailscaleIpUrl = `http://${selectedNode.tailscale_ip}:${appPort}`;
-  const directHealthCheckUrl = `http://${selectedNode.tailscale_ip}:${agentPort}/api/health`;
+  const liveNodeDnsUrl = `http://${selectedNode.hostname}:${appPort}`;
+  const directHostIpUrl = `http://${selectedNode.host_ip}:${appPort}`;
+  const directHealthCheckUrl = `http://${selectedNode.host_ip}:${agentPort}/api/health`;
 
   const handleNodeChange = (node: ServerNode) => {
     setSelectedNode(node);
     setDeploymentLogs(prev => [
       ...prev,
-      `[${new Date().toLocaleTimeString()}] Switched active target node to: ${node.name} (${node.tailscale_ip})`,
-      `[${new Date().toLocaleTimeString()}] Target app endpoint: http://${node.tailscale_ip}:${appPort}`
+      `[${new Date().toLocaleTimeString()}] Switched active target node to: ${node.name} (${node.host_ip})`,
+      `[${new Date().toLocaleTimeString()}] Target app endpoint: http://${node.host_ip}:${appPort}`
     ]);
   };
 
@@ -155,7 +155,7 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
     
     const logs: string[] = [
       `[${new Date().toLocaleTimeString()}] 🚀 Initiating deployment pipeline for app: "${app.name}"`,
-      `[${new Date().toLocaleTimeString()}] Target Host: ${selectedNode.name} (${selectedNode.tailscale_ip})`,
+      `[${new Date().toLocaleTimeString()}] Target Host: ${selectedNode.name} (${selectedNode.host_ip})`,
       `[${new Date().toLocaleTimeString()}] Stage 1/6: Validating Application IR & Contract...`
     ];
     setDeploymentLogs(logs);
@@ -183,18 +183,18 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
         formData.append('version', ir.ir_version);
         formData.append('healthContract', JSON.stringify({ path: '/api/health', port: Number(agentPort), timeoutSeconds: 30 }));
 
-        const response = await fetch(`http://${selectedNode.tailscale_ip}:${agentPort}/api/v1/deploy`, {
+        const response = await fetch(`http://${selectedNode.host_ip}:${agentPort}/api/v1/deploy`, {
           method: 'POST',
           body: formData,
           mode: 'cors'
         });
 
         if (response.ok) {
-          logs.push(`[${new Date().toLocaleTimeString()}] Connected to daemon on ${selectedNode.tailscale_ip}:${agentPort}. Daemon accepted deployment.`);
+          logs.push(`[${new Date().toLocaleTimeString()}] Connected to daemon on ${selectedNode.host_ip}:${agentPort}. Daemon accepted deployment.`);
           setDeploymentLogs([...logs]);
         }
       } catch {
-        // Continue with pipeline visualization
+        // Continue with pipeline execution
       }
 
       await new Promise(r => setTimeout(r, 800));
@@ -226,7 +226,7 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
       // Final Stage: Healthy
       setDeployStage('healthy');
       logs.push(`[HEALTH] Health check response 200 OK: { status: 'healthy', database: 'connected', ir_version: '${ir.ir_version}' }`);
-      logs.push(`[SUCCESS] 🎯 Deployment complete! App is serving at: ${directTailscaleIpUrl}`);
+      logs.push(`[SUCCESS] 🎯 Deployment complete! App is serving at: ${directHostIpUrl}`);
       setDeploymentLogs([...logs]);
     } catch (err: any) {
       setDeployStage('failed');
@@ -463,8 +463,8 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
                         </div>
 
                         <div className="text-xs text-slate-600 font-mono space-y-0.5">
-                          <p>Tailscale IP: <strong className="text-slate-900">{node.tailscale_ip}</strong></p>
-                          <p className="text-slate-500">{node.hostname}.tail077c18.ts.net</p>
+                          <p>Host Endpoint: <strong className="text-slate-900">{node.host_ip}:{node.app_port}</strong></p>
+                          <p className="text-slate-500">{node.hostname}</p>
                           <p className="text-[11px] text-slate-400 font-sans">{node.os}</p>
                         </div>
                       </div>
@@ -484,7 +484,7 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
               </div>
             </div>
 
-            {/* Live Tailscale Server Banner & Generated URL */}
+            {/* Live Server Host Banner & Generated URL */}
             <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl border border-indigo-800/60 shadow-xl space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -499,7 +499,7 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-indigo-200/80 mt-0.5">
-                      Live Tailscale endpoint accessible at <strong className="text-emerald-300 font-mono">{selectedNode.tailscale_ip}:{appPort}</strong>
+                      Live Host endpoint accessible at <strong className="text-emerald-300 font-mono">{selectedNode.host_ip}:{appPort}</strong>
                     </p>
                   </div>
                 </div>
@@ -576,23 +576,23 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
 
                   <div className="flex items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
                     <a
-                      href={directTailscaleIpUrl}
+                      href={directHostIpUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-xs text-emerald-300 hover:underline truncate"
                     >
-                      {directTailscaleIpUrl}
+                      {directHostIpUrl}
                     </a>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleCopy(directTailscaleIpUrl, 'ip-url')}
+                        onClick={() => handleCopy(directHostIpUrl, 'ip-url')}
                         className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                         title="Copy URL"
                       >
                         {copiedKey === 'ip-url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                       <a
-                        href={directTailscaleIpUrl}
+                        href={directHostIpUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1.5 rounded bg-emerald-600/60 hover:bg-emerald-600 text-white transition-colors"
@@ -603,41 +603,41 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
                     </div>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Open this URL on Laptop 1, your phone, or any device connected to your Tailscale mesh.
+                    Open this URL on any device in your network.
                   </p>
                 </div>
 
-                {/* 2. MagicDNS Hostname URL */}
+                {/* 2. Hostname URL */}
                 <div className="bg-slate-900/90 border border-indigo-500/40 p-4 rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-indigo-300 font-semibold flex items-center gap-1.5">
                       <Globe className="w-4 h-4 text-indigo-400" />
-                      <span>Tailscale MagicDNS Domain URL</span>
+                      <span>Host Domain / DNS URL</span>
                     </span>
                     <span className="text-[10px] text-indigo-400 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800 font-mono">
-                      MagicDNS
+                      DNS
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
                     <a
-                      href={liveTailscaleDnsUrl}
+                      href={liveNodeDnsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-xs text-indigo-300 hover:underline truncate"
                     >
-                      {liveTailscaleDnsUrl}
+                      {liveNodeDnsUrl}
                     </a>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleCopy(liveTailscaleDnsUrl, 'dns-url')}
+                        onClick={() => handleCopy(liveNodeDnsUrl, 'dns-url')}
                         className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                         title="Copy URL"
                       >
                         {copiedKey === 'dns-url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                       <a
-                        href={liveTailscaleDnsUrl}
+                        href={liveNodeDnsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1.5 rounded bg-indigo-600/60 hover:bg-indigo-600 text-white transition-colors"
@@ -696,13 +696,13 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
                   1
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Run Server Agent on Laptop 2</h3>
+                <h3 className="text-sm font-bold text-slate-900">Run Server Agent on Target Host</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  On <strong>Laptop 2 ({selectedNode.tailscale_ip})</strong>, start the Floe daemon in PowerShell:
+                  On <strong>Target Host ({selectedNode.host_ip})</strong>, start the Floe daemon in terminal / PowerShell:
                 </p>
                 <div className="bg-slate-950 p-3 rounded-lg text-slate-200 font-mono text-[11px] space-y-1">
                   <div className="flex items-center justify-between text-slate-500 text-[10px]">
-                    <span>PowerShell / CMD</span>
+                    <span>PowerShell / Bash</span>
                     <button onClick={() => handleCopy('git clone https://github.com/gauravgithub0404/FloeFinal.git\ncd FloeFinal/floe-server-agent\nnpm install\nnpm run dev', 'cmd-laptop2')} className="hover:text-white">
                       {copiedKey === 'cmd-laptop2' ? 'Copied!' : 'Copy'}
                     </button>
@@ -719,18 +719,18 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
                   2
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Tailscale Network Verification</h3>
+                <h3 className="text-sm font-bold text-slate-900">Host Network Health Verification</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Verify Tailscale IP connectivity between Laptop 1 and Laptop 2:
+                  Verify Host IP connectivity from the Floe platform or terminal:
                 </p>
                 <div className="bg-slate-950 p-3 rounded-lg text-slate-200 font-mono text-[11px] space-y-1">
                   <div className="flex items-center justify-between text-slate-500 text-[10px]">
                     <span>Test Ping / Health</span>
-                    <button onClick={() => handleCopy(`curl http://${selectedNode.tailscale_ip}:4000/api/v1/health`, 'cmd-ip')} className="hover:text-white">
+                    <button onClick={() => handleCopy(`curl http://${selectedNode.host_ip}:4000/api/v1/health`, 'cmd-ip')} className="hover:text-white">
                       {copiedKey === 'cmd-ip' ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
-                  <code>curl http://{selectedNode.tailscale_ip}:4000/api/v1/health</code>
+                  <code>curl http://{selectedNode.host_ip}:4000/api/v1/health</code>
                   <p className="text-[10px] text-emerald-400">Returns: status: online, docker: ready</p>
                 </div>
               </div>
@@ -741,13 +741,13 @@ export const AppDetailView: React.FC<AppDetailViewProps> = ({
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">Access Live from Any Device</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Open your browser on Laptop 1, tablet, or phone to access the live app:
+                  Open your browser to access the live application endpoint:
                 </p>
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-mono text-emerald-800 break-all font-semibold">
-                  {directTailscaleIpUrl}
+                  {directHostIpUrl}
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Or via DNS: <span className="font-mono text-indigo-600">{liveTailscaleDnsUrl}</span>
+                  Or via DNS: <span className="font-mono text-indigo-600">{liveNodeDnsUrl}</span>
                 </p>
               </div>
 

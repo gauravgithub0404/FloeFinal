@@ -410,8 +410,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Ensure production requires DATABASE_URL
+if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+  console.error('FATAL ERROR: DATABASE_URL environment variable is mandatory in production mode.');
+  process.exit(1);
+}
+
 const dbPool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://floe:floepassword123@postgres:5432/${ir.domain.replace(/-/g, '_')}'
+  connectionString: process.env.DATABASE_URL || 'postgresql://floe:development_only_password@localhost:5432/${ir.domain.replace(/-/g, '_')}'
 });
 
 const recordService = new RecordService(dbPool);

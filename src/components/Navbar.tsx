@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Sparkles, ShieldCheck, PlusCircle, HelpCircle, User, Code2 } from 'lucide-react';
+import { Layers, Sparkles, ShieldCheck, PlusCircle, HelpCircle, User, Code2, Database } from 'lucide-react';
 
 interface NavbarProps {
   currentView: 'dashboard' | 'chat' | 'review' | 'generating' | 'app_detail';
@@ -7,6 +7,7 @@ interface NavbarProps {
   onOpenAuditLogs: () => void;
   onOpenUiSuggestions: () => void;
   onOpenHowItWorks: () => void;
+  onOpenInfrastructure: () => void;
   isDevMode: boolean;
   onToggleDevMode: () => void;
   appName?: string;
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuditLogs,
   onOpenUiSuggestions,
   onOpenHowItWorks,
+  onOpenInfrastructure,
   isDevMode,
   onToggleDevMode,
   appName
@@ -59,6 +61,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Global Controls & Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
           
+          {/* Live Infrastructure & PostgreSQL Status Badge */}
+          <button
+            id="nav-infra-btn"
+            onClick={onOpenInfrastructure}
+            title="Inspect Connected Render PostgreSQL Database & Render API status"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Render Postgres</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-200/60 text-emerald-900 font-mono">
+              Live
+            </span>
+          </button>
+
           {/* User Mode Toggle: Simple / Friendly (Default) vs Developer Mode */}
           <button
             id="nav-devmode-toggle-btn"
@@ -104,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden lg:inline">Design Tips</span>
           </button>
 
-          {/* Audit Logs Button (if dev mode or clicked) */}
+          {/* Audit Logs Button */}
           <button
             id="nav-audit-logs-btn"
             onClick={onOpenAuditLogs}

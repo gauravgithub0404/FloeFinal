@@ -14,6 +14,8 @@ export type PipelineStageId =
 
 export type StageStatus = 'pending' | 'running' | 'passed' | 'warning' | 'failed' | 'skipped';
 
+export type ToolStatus = 'active' | 'configured' | 'available' | 'running' | 'passed' | 'failed' | 'skipped' | 'unavailable';
+
 export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
 export interface SecurityFinding {
@@ -28,6 +30,7 @@ export interface SecurityFinding {
   line?: number;
   url?: string;
   remediation?: string;
+  evidenceCode?: string;
 }
 
 export interface TestResultItem {
@@ -45,6 +48,7 @@ export interface SbomComponent {
   type: 'library' | 'framework' | 'container-base' | 'runtime';
   purl: string;
   license: string;
+  sha256?: string;
   vulnerabilitiesCount: number;
 }
 
@@ -57,6 +61,7 @@ export interface SbomReport {
   totalDependencies: number;
   totalDirect: number;
   licensesFound: string[];
+  sbomSha256?: string;
 }
 
 export interface GovernancePolicyConfig {
@@ -68,6 +73,32 @@ export interface GovernancePolicyConfig {
   requireZeroSecrets: boolean;
   requireMinTestCoveragePct: number;
   requireDastClean: boolean;
+  policyVersion?: string;
+}
+
+export interface GovernanceResult {
+  decision: 'PASS' | 'REVIEW' | 'BLOCK';
+  reasons: string[];
+  policyVersion: string;
+  evidenceIds: string[];
+  evaluatedAt: string;
+  score: number;
+  metrics: {
+    criticalFindings: number;
+    highFindings: number;
+    mediumFindings: number;
+    lowFindings: number;
+    testPassRatePct: number;
+    sbomPresent: boolean;
+    dastClean: boolean;
+  };
+}
+
+export interface TestEnvironmentPolicy {
+  maxUsers: number;
+  storageGb: number;
+  maxDays: number;
+  idleSleepMinutes: number;
 }
 
 export interface PipelineStageResult {
@@ -84,6 +115,7 @@ export interface PipelineStageResult {
   findings?: SecurityFinding[];
   testResults?: TestResultItem[];
   sbom?: SbomReport;
+  governanceResult?: GovernanceResult;
   metrics?: Record<string, string | number | boolean>;
 }
 
@@ -97,7 +129,15 @@ export interface PipelineInstance {
   status: 'idle' | 'running' | 'passed' | 'failed' | 'blocked';
   currentStageId: PipelineStageId;
   policyConfig: GovernancePolicyConfig;
+  governanceDecision?: GovernanceResult;
   stages: Record<PipelineStageId, PipelineStageResult>;
+  evidenceStore: Record<string, {
+    stageId: PipelineStageId;
+    type: string;
+    payload: any;
+    hash: string;
+    timestamp: string;
+  }>;
   artifact: {
     imageDigest?: string;
     imageTag?: string;
@@ -115,10 +155,12 @@ export interface PipelineInstance {
 export interface PluggableProviderInfo {
   category: 'SAST' | 'ContainerScanner' | 'SecretScanner' | 'DependencyScanner' | 'DAST' | 'TestRunner' | 'SBOMGenerator' | 'ExternalValidator';
   activeProvider: string;
+  isOptional?: boolean;
   availableProviders: Array<{
     name: string;
     description: string;
     version: string;
-    status: 'active' | 'configured' | 'available';
+    status: ToolStatus;
   }>;
 }
+

@@ -11,6 +11,7 @@ import { StandaloneTestbed } from './components/StandaloneTestbed';
 import { AuditLogModal } from './components/AuditLogModal';
 import { UiSuggestionsModal } from './components/UiSuggestionsModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
+import { InfrastructureModal } from './components/InfrastructureModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isUiSuggestionsModalOpen, setIsUiSuggestionsModalOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
+  const [isInfraModalOpen, setIsInfraModalOpen] = useState(false);
 
   // Workflow Handlers
   const handleStartNewApp = (domainId?: string) => {
@@ -129,7 +131,6 @@ export default function App() {
         ir={activeIr}
         appName={selectedApp?.name || activeIr.name}
         onBackToStudio={() => {
-          // Clear query params without full reload
           if (typeof window !== 'undefined' && window.history) {
             window.history.pushState({}, '', window.location.pathname);
           }
@@ -149,6 +150,7 @@ export default function App() {
         onOpenAuditLogs={() => setIsAuditModalOpen(true)}
         onOpenUiSuggestions={() => setIsUiSuggestionsModalOpen(true)}
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+        onOpenInfrastructure={() => setIsInfraModalOpen(true)}
         isDevMode={isDevMode}
         onToggleDevMode={() => setIsDevMode(!isDevMode)}
         appName={selectedApp?.name}
@@ -236,6 +238,11 @@ export default function App() {
           setIsHowItWorksOpen(false);
           handleStartNewApp();
         }}
+      />
+
+      <InfrastructureModal
+        isOpen={isInfraModalOpen}
+        onClose={() => setIsInfraModalOpen(false)}
       />
     </div>
   );

@@ -62,7 +62,7 @@ export interface ServerNode {
   id: string;
   name: string;
   hostname: string;
-  tailscale_ip: string;
+  host_ip: string;
   agent_port: number;
   app_port: number;
   status: 'online' | 'offline' | 'busy';

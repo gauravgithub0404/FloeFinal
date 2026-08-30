@@ -4,10 +4,13 @@ import { DeploymentStatus, DeploymentStage } from '../types/deployment';
 import { deploymentManager } from '../engine/deployment/DeploymentManager';
 import { LiveAppSandbox } from './LiveAppSandbox';
 import { FloePipelineDashboard } from './pipeline/FloePipelineDashboard';
+import { ShareTestbedModal } from './ShareTestbedModal';
+import { getPublicTestbedUrl, getLocalTestbedUrl, isLocalhost } from '../utils/urlHelper';
 import { 
   Play, CheckCircle2, Clock, AlertTriangle, ExternalLink, RefreshCw, 
   Terminal, Shield, Database, Cpu, Globe, ArrowRight, Check, Copy, Zap,
-  QrCode, Share2, Sparkles, Send, Smartphone, Monitor, Layers, ShieldCheck
+  QrCode, Share2, Sparkles, Send, Smartphone, Monitor, Layers, ShieldCheck,
+  Info, Laptop
 } from 'lucide-react';
 
 interface TestEnvironmentViewProps {
@@ -71,9 +74,8 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
   });
   const [isLoadingApi, setIsLoadingApi] = useState(false);
 
-  const publicTestUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}${window.location.pathname}?testbed=${encodeURIComponent(ir.domain || 'app')}`
-    : (deployment?.serviceUrl || `https://${(ir.domain || 'app').toLowerCase().replace(/[^a-z0-9]/g, '-')}-test.onrender.com`);
+  const publicTestUrl = getPublicTestbedUrl(ir.domain || 'app');
+  const isCurrentlyLocal = isLocalhost();
 
   const steps = [
     { title: 'Preparing application', detail: 'Validating IR schemas & workflow graph', successLabel: 'IR validated' },
@@ -351,16 +353,17 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
                     
                     {/* Live URL Pill with One-Click Actions */}
                     <div className="flex flex-wrap items-center gap-2 mt-3 font-mono text-xs">
-                      <span className="text-slate-800 bg-white px-3 py-1.5 rounded-lg border border-slate-300 font-semibold shadow-2xs select-all break-all">
-                        {publicTestUrl}
+                      <span className="text-slate-800 bg-white px-3 py-1.5 rounded-lg border border-slate-300 font-semibold shadow-2xs select-all break-all flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{publicTestUrl}</span>
                       </span>
                       <button
                         onClick={() => handleCopyUrl(publicTestUrl)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-sans font-semibold transition-colors shadow-2xs"
-                        title="Copy Live Test URL"
+                        title="Copy Live Test URL for all computers & devices"
                       >
                         {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedUrl ? 'Copied!' : 'Copy URL'}</span>
+                        <span>{copiedUrl ? 'Copied Public URL!' : 'Copy Share URL'}</span>
                       </button>
                       <a
                         href={publicTestUrl}
@@ -373,10 +376,24 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
                       </a>
                       <button
                         onClick={() => setShowShareModal(true)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-sans font-semibold transition-colors shadow-2xs"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-sans font-semibold transition-colors shadow-2xs"
                       >
-                        <Share2 className="w-3.5 h-3.5 text-sky-600" />
-                        <span>Share / QR</span>
+                        <Share2 className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Share / Multi-Device QR</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500 font-sans">
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Accessible from any computer, laptop, or mobile browser
+                      </span>
+                      <span>•</span>
+                      <button 
+                        onClick={() => setShowShareModal(true)}
+                        className="text-indigo-600 hover:underline font-medium"
+                      >
+                        Why didn't localhost work on other computers?
                       </button>
                     </div>
                   </div>
@@ -575,56 +592,13 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
         )}
       </div>
 
-      {/* Share / QR Code Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Share2 className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-base font-bold text-white">Share Live Free Cloud Testbed</h3>
-              </div>
-              <button 
-                onClick={() => setShowShareModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-300">
-              Share this live test URL with anyone. They can test forms, workflows, and state transitions freely without needing an account or paying for cloud hosting.
-            </p>
-
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <span className="text-[11px] text-slate-400 block font-mono">Public Testbed URL:</span>
-              <div className="flex items-center justify-between gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-xs font-mono text-emerald-300 break-all select-all">
-                <span>{publicTestUrl}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCopyUrl(publicTestUrl)}
-                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all"
-              >
-                {copiedUrl ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedUrl ? 'Copied to Clipboard!' : 'Copy Link'}</span>
-              </button>
-              
-              <a
-                href={publicTestUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors"
-              >
-                <ExternalLink className="w-4 h-4" />
-                <span>Open Tab</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Share & Multi-Device Testbed Modal */}
+      <ShareTestbedModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        domain={ir.domain || 'app'}
+        appName={appName}
+      />
     </div>
   );
 };
