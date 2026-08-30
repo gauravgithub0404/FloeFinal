@@ -29,13 +29,25 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
   // Initialize Architecture Plan from IR requirement profile
   const initialPlan = ir.architecture_plan || generateArchitecturePlan(ir, ir.requirement_profile);
   const [plan, setPlan] = useState<ArchitecturePlan>(initialPlan);
-  const [selectedTarget, setSelectedTarget] = useState<DeploymentTargetKey>(plan.selected_target || plan.recommended_target);
+  const [selectedTarget, setSelectedTarget] = useState<DeploymentTargetKey>(plan.selected_target || plan.recommended_target || 'on_prem');
   const [selectedDbEngine, setSelectedDbEngine] = useState<'postgresql' | 'mysql' | 'sqlite'>('postgresql');
   const [activeTab, setActiveTab] = useState<'recommendation' | 'comparison' | 'breakdown' | 'requirements'>('recommendation');
   const [tcoView, setTcoView] = useState<'infrastructure_only' | 'tco_total'>('infrastructure_only');
 
-  const currentProfile = plan.profiles[selectedTarget];
-  const req = plan.requirement_profile;
+  const currentProfile = plan.profiles?.[selectedTarget] || plan.profiles?.[plan.recommended_target] || plan.profiles?.['on_prem'] || plan.profiles?.['aws'] || Object.values(plan.profiles || {})[0];
+  const req: RequirementProfile = plan.requirement_profile || {
+    user_count_bracket: '51-250',
+    total_registered_users: 250,
+    concurrent_users: 30,
+    growth_12_months_users: 500,
+    growth_multiple: 2,
+    criticality: 'internal_business',
+    data_sensitivity: 'confidential',
+    geographic_reach: 'india',
+    availability: 'several_hours',
+    internal_vs_external: 'internal_only',
+    cloud_provider_preference: 'none'
+  };
 
   const handleTargetSelect = (key: DeploymentTargetKey) => {
     setSelectedTarget(key);
@@ -223,9 +235,11 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
               <div className="text-right">
                 <div className="text-xs text-indigo-200/70">Estimated Infrastructure Cost</div>
                 <div className="text-2xl font-black text-emerald-400">
-                  {plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.nominal === 0
-                    ? '₹0 / month'
-                    : `₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`}
+                  {plan.profiles?.[plan.recommended_target]?.estimated_monthly_cost_inr
+                    ? (plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.nominal === 0
+                        ? '₹0 / month'
+                        : `₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`)
+                    : '₹0 / month'}
                 </div>
               </div>
             </div>
@@ -280,17 +294,18 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(plan.recommendation_rationale.why_not_alternatives).map(([key, reason]) => {
+              {Object.entries(plan.recommendation_rationale?.why_not_alternatives || {}).map(([key, reason]) => {
                 if (key === plan.recommended_target) return null;
-                const profile = plan.profiles[key as DeploymentTargetKey];
+                const profile = plan.profiles?.[key as DeploymentTargetKey];
+                if (!profile) return null;
                 return (
                   <div key={key} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">{profile.display_name}</span>
                       <span className="text-[10px] font-mono text-slate-500">
-                        {profile.estimated_monthly_cost_inr.nominal === 0
+                        {profile.estimated_monthly_cost_inr ? (profile.estimated_monthly_cost_inr.nominal === 0
                           ? '₹0/mo'
-                          : `₹${profile.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`}
+                          : `₹${profile.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`) : '₹0/mo'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">
@@ -394,14 +409,15 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
 
           {/* 4 Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(['laptop_private', 'on_prem', 'aws', 'azure'] as DeploymentTargetKey[]).map((key) => {
-              const opt = plan.profiles[key];
+            {(['on_prem', 'aws', 'azure', 'gcp'] as DeploymentTargetKey[]).map((key) => {
+              const opt = plan.profiles?.[key];
+              if (!opt) return null;
               const isSelected = selectedTarget === key;
               const isRecommended = plan.recommended_target === key;
 
               const costDisplay = tcoView === 'infrastructure_only'
-                ? (opt.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / mo' : `₹${opt.estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${opt.estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`)
-                : `₹${opt.tco_monthly_inr.toLocaleString('en-IN')}/mo (TCO)`;
+                ? (opt.estimated_monthly_cost_inr ? (opt.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / mo' : `₹${opt.estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${opt.estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`) : '₹0 / mo')
+                : `₹${(opt.tco_monthly_inr || 0).toLocaleString('en-IN')}/mo (TCO)`;
 
               return (
                 <div
@@ -500,7 +516,7 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  Itemized Cost Breakdown for {currentProfile.display_name}
+                  Itemized Cost Breakdown for {currentProfile?.display_name || 'Target'}
                 </h3>
                 <p className="text-xs text-slate-500">
                   Deterministic resource specification based on {req.total_registered_users} registered users ({req.concurrent_users} concurrent).
@@ -510,9 +526,9 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
               <div className="text-right">
                 <div className="text-xs text-slate-400">Total Monthly Cost</div>
                 <div className="text-xl font-bold text-indigo-600">
-                  {currentProfile.estimated_monthly_cost_inr.nominal === 0
+                  {currentProfile?.estimated_monthly_cost_inr ? (currentProfile.estimated_monthly_cost_inr.nominal === 0
                     ? '₹0 / month'
-                    : `₹${currentProfile.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')} / month`}
+                    : `₹${currentProfile.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')} / month`) : '₹0 / month'}
                 </div>
               </div>
             </div>
@@ -528,7 +544,7 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {currentProfile.breakdown.map((item, idx) => (
+                  {(currentProfile?.breakdown || []).map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="py-3 px-3 font-bold text-slate-900">{item.component}</td>
                       <td className="py-3 px-3 text-slate-700">{item.name}</td>

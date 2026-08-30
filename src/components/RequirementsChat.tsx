@@ -224,14 +224,17 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
         ]);
       } else {
         const plan = generateArchitecturePlan(nextIr, nextReq);
-        const recProfile = plan.profiles[plan.recommended_target];
+        const recProfile = plan.profiles?.[plan.recommended_target] || plan.profiles?.['aws'] || plan.profiles?.['on_prem'] || Object.values(plan.profiles || {})[0];
+        const costStr = recProfile?.estimated_monthly_cost_inr
+          ? (recProfile.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / month' : `₹${recProfile.estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${recProfile.estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`)
+          : '₹0 / month';
         
         setMessages(prev => [
           ...prev,
           {
             id: `msg-complete-${Date.now()}`,
             role: 'assistant',
-            content: `🎯 **Architecture Plan & Cost Model Synthesized!**\n\nBased on your scale of **${nextReq.total_registered_users} registered users** (${nextReq.concurrent_users} peak concurrent) with **${nextReq.data_sensitivity} data**:\n\n• **Recommended Target**: **${recProfile.display_name}**\n• **Estimated Monthly Cost**: **${recProfile.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / month' : `₹${recProfile.estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${recProfile.estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`}**\n• **Database**: **PostgreSQL 15 (ACID Relational)**\n• **Why Recommended**: ${recProfile.why_recommended_bullet}\n\nClick **"Review Architecture & Cost Model"** on the right to inspect 4-way provider comparisons and approve the plan!`,
+            content: `🎯 **Architecture Plan & Cost Model Synthesized!**\n\nBased on your scale of **${nextReq.total_registered_users} registered users** (${nextReq.concurrent_users} peak concurrent) with **${nextReq.data_sensitivity} data**:\n\n• **Recommended Target**: **${recProfile?.display_name || 'Recommended Target'}**\n• **Estimated Monthly Cost**: **${costStr}**\n• **Database**: **PostgreSQL 15 (ACID Relational)**\n• **Why Recommended**: ${recProfile?.why_recommended_bullet || 'Optimal scale & data isolation'}\n\nClick **"Review Architecture & Cost Model"** on the right to inspect 4-way provider comparisons and approve the plan!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             suggestedReplies: [
               'Review Architecture & Cost Model 🚀',
@@ -255,7 +258,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   };
 
   const currentPlan = candidateIr.architecture_plan || generateArchitecturePlan(candidateIr, reqProfile);
-  const recOption = currentPlan.profiles[currentPlan.recommended_target];
+  const recOption = currentPlan.profiles?.[currentPlan.recommended_target] || currentPlan.profiles?.['aws'] || currentPlan.profiles?.['on_prem'] || Object.values(currentPlan.profiles || {})[0];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -456,11 +459,11 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                       ⭐ Recommended Target
                     </span>
                     <span className="text-xs font-bold text-white">
-                      {recOption.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / mo' : `₹${recOption.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`}
+                      {recOption?.estimated_monthly_cost_inr ? (recOption.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / mo' : `₹${recOption.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`) : '₹0 / mo'}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-white">{recOption.display_name}</p>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">{recOption.why_recommended_bullet}</p>
+                  <p className="text-xs font-bold text-white">{recOption?.display_name || 'Recommended Target'}</p>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">{recOption?.why_recommended_bullet || 'Cost effective & secure'}</p>
                 </div>
 
                 {/* Database Spec */}
@@ -487,14 +490,14 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                   </span>
                   
                   <div className="space-y-1.5">
-                    {(Object.values(currentPlan.profiles) as DeploymentProfileOption[]).map((p) => (
+                    {(Object.values(currentPlan.profiles || {}) as DeploymentProfileOption[]).map((p) => (
                       <div key={p.target_key} className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
                         <div>
                           <span className="font-semibold text-slate-200 block text-xs">{p.display_name.split('(')[0]}</span>
                           <span className="text-[10px] text-slate-400">{p.compute_spec.vCpu} vCPU, {p.compute_spec.ram_gb}GB RAM</span>
                         </div>
                         <span className="font-mono text-emerald-400 font-bold text-xs">
-                          {p.estimated_monthly_cost_inr.nominal === 0 ? '₹0/mo' : `₹${p.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`}
+                          {p.estimated_monthly_cost_inr ? (p.estimated_monthly_cost_inr.nominal === 0 ? '₹0/mo' : `₹${p.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`) : '₹0/mo'}
                         </span>
                       </div>
                     ))}

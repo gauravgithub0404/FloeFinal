@@ -31,7 +31,7 @@ export const ProductionArchitectureScreen: React.FC<ProductionArchitectureScreen
   const initialPlan = ir.architecture_plan || generateArchitecturePlan(ir, ir.requirement_profile);
   const [plan, setPlan] = useState<ArchitecturePlan>(initialPlan);
   const [selectedTarget, setSelectedTarget] = useState<DeploymentTargetKey>(
-    plan.recommended_target || 'aws'
+    plan.selected_target || plan.recommended_target || 'aws'
   );
   const [selectedDbOption, setSelectedDbOption] = useState<'managed_pg' | 'community_pg'>('managed_pg');
   const [tcoView, setTcoView] = useState<'infrastructure_only' | 'tco_total'>('infrastructure_only');
@@ -45,8 +45,20 @@ export const ProductionArchitectureScreen: React.FC<ProductionArchitectureScreen
   const [promotionLogs, setPromotionLogs] = useState<string[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const currentProfile = plan.profiles[selectedTarget];
-  const req = plan.requirement_profile;
+  const currentProfile = plan.profiles?.[selectedTarget] || plan.profiles?.[plan.recommended_target] || plan.profiles?.['aws'] || plan.profiles?.['on_prem'] || Object.values(plan.profiles || {})[0];
+  const req: RequirementProfile = plan.requirement_profile || {
+    user_count_bracket: '51-250',
+    total_registered_users: 250,
+    concurrent_users: 30,
+    growth_12_months_users: 500,
+    growth_multiple: 2,
+    criticality: 'internal_business',
+    data_sensitivity: 'confidential',
+    geographic_reach: 'india',
+    availability: 'several_hours',
+    internal_vs_external: 'internal_only',
+    cloud_provider_preference: 'none'
+  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -754,8 +766,8 @@ export const ProductionArchitectureScreen: React.FC<ProductionArchitectureScreen
                       <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="text-xl font-bold font-mono text-emerald-500">
                           {tcoView === 'infrastructure_only' 
-                            ? (p.estimated_monthly_cost_inr.nominal === 0 ? '₹0' : `₹${p.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}`)
-                            : `₹${p.tco_monthly_inr.toLocaleString('en-IN')}`}
+                            ? (p?.estimated_monthly_cost_inr ? (p.estimated_monthly_cost_inr.nominal === 0 ? '₹0' : `₹${p.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}`) : '₹0')
+                            : `₹${(p?.tco_monthly_inr || 0).toLocaleString('en-IN')}`}
                         </span>
                         <span className={`text-xs ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>/ mo</span>
                       </div>
