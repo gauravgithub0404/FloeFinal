@@ -33,7 +33,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   const [selectedDbEngine, setSelectedDbEngine] = useState<'postgresql' | 'mysql' | 'sqlite'>('postgresql');
 
   // Navigation tab
-  const [activeTab, setActiveTab] = useState<'architecture_pricing' | 'overview' | 'workflow' | 'schema' | 'json'>('architecture_pricing');
+  const [activeTab, setActiveTab] = useState<'testbed_preview' | 'overview' | 'workflow' | 'schema' | 'architecture_pricing' | 'json'>('testbed_preview');
 
   const validation: ValidationResult = validateIR(currentIr);
 
@@ -109,12 +109,12 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           </button>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-              STEP 2 OF 3: ARCHITECTURE, SIZING & TRUST REVIEW
+              STEP 2 OF 3: BLUEPRINT & TESTBED REVIEW
             </span>
             <span className="text-slate-300">•</span>
             <span className="text-xs text-slate-500 font-mono">Domain: {currentIr.domain}</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mt-0.5">Architecture & Cost Recommendation</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mt-0.5">Review Blueprint & Launch Free Test Environment</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all"
           >
             <Zap className="w-4 h-4 fill-white" />
-            <span>Approve & Generate Application</span>
+            <span>Approve & Launch Free Testbed</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -140,7 +140,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
               <b>Validated:</b> All {validation.summary.entityCount} entities, foreign keys, and {validation.summary.nodeCount} workflow graph nodes conform to IR v1.0 specifications.
             </span>
           </div>
-          <span className="text-emerald-700 font-mono font-medium">Ready for Deterministic Compilation</span>
+          <span className="text-emerald-700 font-mono font-medium">Ready for ₹0 Free Testbed</span>
         </div>
       ) : (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800">
@@ -156,22 +156,22 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 text-xs font-medium">
+      <div className="flex items-center gap-2 border-b border-slate-200 text-xs font-medium overflow-x-auto">
         <button
-          onClick={() => setActiveTab('architecture_pricing')}
-          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors ${
-            activeTab === 'architecture_pricing'
+          onClick={() => setActiveTab('testbed_preview')}
+          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors shrink-0 ${
+            activeTab === 'testbed_preview'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
-          <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Deployment & Cost Model</span>
+          <Zap className="w-3.5 h-3.5 text-emerald-600" />
+          <span>🧪 Free Testbed Ready (₹0)</span>
         </button>
 
         <button
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors ${
+          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors shrink-0 ${
             activeTab === 'overview'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -183,7 +183,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 
         <button
           onClick={() => setActiveTab('workflow')}
-          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors ${
+          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors shrink-0 ${
             activeTab === 'workflow'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -195,7 +195,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 
         <button
           onClick={() => setActiveTab('schema')}
-          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors ${
+          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors shrink-0 ${
             activeTab === 'schema'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -206,8 +206,20 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('architecture_pricing')}
+          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors shrink-0 ${
+            activeTab === 'architecture_pricing'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Production Sizing & Cost (Preview)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('json')}
-          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors ${
+          className={`pb-3 px-3 border-b-2 font-bold flex items-center gap-2 transition-colors shrink-0 ${
             activeTab === 'json'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -217,6 +229,115 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           <span>IR AST (JSON)</span>
         </button>
       </div>
+
+      {/* TAB: TESTBED PREVIEW (DEFAULT) */}
+      {activeTab === 'testbed_preview' && (
+        <div className="space-y-6">
+          
+          {/* Main Hero Card for Free Test Environment */}
+          <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 text-white rounded-2xl p-6 border border-emerald-700/50 shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950">
+                    STEP 1: FREE TEST ENVIRONMENT FIRST
+                  </span>
+                  <h2 className="text-xl font-bold text-white mt-1">
+                    Deploy to Free Sandbox Testbed for Verification
+                  </h2>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-xs text-emerald-200/70">Testbed Hosting Cost</div>
+                <div className="text-2xl font-black text-emerald-400">
+                  ₹0 / month
+                </div>
+                <div className="text-[10px] text-emerald-300 font-mono">100% Free Sandbox</div>
+              </div>
+            </div>
+
+            <p className="text-xs text-emerald-100/90 leading-relaxed border-t border-emerald-800/60 pt-3">
+              You will first test your application in a dedicated, isolated testbed. Once you are satisfied that data flows, form validations, and user roles work as expected, you can click <b>"Promote to Production"</b> to review cloud provider sizing (AWS, Azure, GCP, On-Prem) and cost models.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <div className="bg-slate-950/70 p-4 rounded-xl border border-emerald-900/60 space-y-1.5">
+                <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Isolated Test Database</span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  PostgreSQL 15 relational instance with seeded sample data for {currentIr.entities.length} entities.
+                </p>
+              </div>
+
+              <div className="bg-slate-950/70 p-4 rounded-xl border border-emerald-900/60 space-y-1.5">
+                <div className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Interactive Test GUI</span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  Simulate user roles, create live records, trigger approvals, and test rejection edge cases.
+                </p>
+              </div>
+
+              <div className="bg-slate-950/70 p-4 rounded-xl border border-emerald-900/60 space-y-1.5">
+                <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Seamless Promotion</span>
+                </div>
+                <p className="text-xs text-slate-300">
+                  Promote to AWS, Azure, GCP, or On-Premises with full infrastructure cost breakdown whenever ready.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sizing & Specifications Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Database className="w-4 h-4 text-emerald-600" />
+                <span>Entities to be Provisioned ({currentIr.entities.length})</span>
+              </h3>
+              <div className="space-y-2">
+                {currentIr.entities.map((e, idx) => (
+                  <div key={idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
+                    <span className="font-mono font-bold text-slate-800">{e.name}</span>
+                    <span className="text-slate-500">{e.fields.length} columns & constraints</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-indigo-600" />
+                <span>Workflow & Role Governance</span>
+              </h3>
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
+                  <span className="text-slate-600">Workflow States</span>
+                  <span className="font-bold text-indigo-700 font-mono">{workflow.nodes.length} Steps</span>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
+                  <span className="text-slate-600">Configured User Roles</span>
+                  <span className="font-bold text-indigo-700 font-mono">{currentIr.roles.map(r => r.name).join(', ')}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
+                  <span className="text-slate-600">Data Classification</span>
+                  <span className="font-bold text-emerald-700 font-mono uppercase">{req.data_sensitivity}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
 
       {/* TAB 1: ARCHITECTURE & COST MODEL */}
       {activeTab === 'architecture_pricing' && (
@@ -716,7 +837,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-md transition-all"
         >
           <Zap className="w-4 h-4 fill-white" />
-          <span>Approve Architecture & Generate</span>
+          <span>Approve & Launch Free Testbed</span>
         </button>
       </div>
 

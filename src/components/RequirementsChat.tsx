@@ -225,21 +225,18 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
       } else {
         const plan = generateArchitecturePlan(nextIr, nextReq);
         const recProfile = plan.profiles?.[plan.recommended_target] || plan.profiles?.['aws'] || plan.profiles?.['on_prem'] || Object.values(plan.profiles || {})[0];
-        const costStr = recProfile?.estimated_monthly_cost_inr
-          ? (recProfile.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / month' : `₹${recProfile.estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${recProfile.estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`)
-          : '₹0 / month';
         
         setMessages(prev => [
           ...prev,
           {
             id: `msg-complete-${Date.now()}`,
             role: 'assistant',
-            content: `🎯 **Architecture Plan & Cost Model Synthesized!**\n\nBased on your scale of **${nextReq.total_registered_users} registered users** (${nextReq.concurrent_users} peak concurrent) with **${nextReq.data_sensitivity} data**:\n\n• **Recommended Target**: **${recProfile?.display_name || 'Recommended Target'}**\n• **Estimated Monthly Cost**: **${costStr}**\n• **Database**: **PostgreSQL 15 (ACID Relational)**\n• **Why Recommended**: ${recProfile?.why_recommended_bullet || 'Optimal scale & data isolation'}\n\nClick **"Review Architecture & Cost Model"** on the right to inspect 4-way provider comparisons and approve the plan!`,
+            content: `🎉 **Application Blueprint & Specifications Ready!**\n\nBased on your domain and requirements for **${nextIr.name}**:\n\n• **🧪 Test Environment**: **Free Sandbox (₹0 Cost)** — Deploy instantly to verify database tables, workflow state changes, and role permissions.\n• **🚀 Production Deployment**: Ready for promotion (AWS, Azure, GCP, or On-Premises) with real-time cost analysis when you decide to go live!\n• **Database Architecture**: **PostgreSQL 15 (ACID Relational)** with ${nextIr.entities.length} tables & strict foreign key governance.\n\nClick **"Review & Launch Free Testbed"** on the right to review schemas and start testing!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             suggestedReplies: [
-              'Review Architecture & Cost Model 🚀',
-              'Recalculate for 1,000 users',
-              'Compare AWS vs Azure pricing'
+              'Review & Launch Free Testbed 🚀',
+              'Check workflow state diagram',
+              'View entity relationships'
             ]
           }
         ]);
@@ -266,8 +263,8 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">STEP 1 OF 3: REQUIREMENTS & ARCHITECTURE SIZING</span>
-          <h2 className="text-xl font-bold text-slate-900">Define Scope, Scale & Cost Model</h2>
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">STEP 1 OF 3: REQUIREMENTS & SPECIFICATIONS</span>
+          <h2 className="text-xl font-bold text-slate-900">Define Scope & Business Workflows</h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -410,7 +407,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                     previewTab === 'visual' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400'
                   }`}
                 >
-                  Blueprint
+                  Testbed
                 </button>
                 <button
                   onClick={() => setPreviewTab('architecture')}
@@ -418,7 +415,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                     previewTab === 'architecture' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400'
                   }`}
                 >
-                  Cost Model
+                  Prod Sizing
                 </button>
                 <button
                   onClick={() => setPreviewTab('json')}
@@ -435,35 +432,37 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
             {previewTab === 'visual' && (
               <div className="space-y-3 overflow-y-auto max-h-[460px] pr-1">
                 
-                {/* Sizing & Scale Box */}
+                {/* Free Sandbox Badge Card */}
+                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-600/50 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                      🧪 Free Sandbox Testbed
+                    </span>
+                    <span className="text-xs font-bold font-mono text-emerald-300">
+                      ₹0 Free Plan
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-white">Live Interactive Testbed</p>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Test live forms, role workflows, and CRUD operations for free in the sandbox before committing to production.
+                  </p>
+                </div>
+
+                {/* Scope Profile */}
                 <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">
-                    Workload & Sizing Profile
+                    Domain & Target Scope
                   </span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                      <span className="text-slate-400 text-[10px] block">Registered Users:</span>
-                      <span className="font-bold text-white text-sm">{reqProfile.total_registered_users}</span>
+                      <span className="text-slate-400 text-[10px] block">Entities (Tables):</span>
+                      <span className="font-bold text-white text-sm">{candidateIr.entities.length} Tables</span>
                     </div>
                     <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
-                      <span className="text-slate-400 text-[10px] block">Peak Concurrent:</span>
-                      <span className="font-bold text-emerald-400 text-sm">{reqProfile.concurrent_users}</span>
+                      <span className="text-slate-400 text-[10px] block">Workflow Steps:</span>
+                      <span className="font-bold text-emerald-400 text-sm">{candidateIr.workflows[0]?.nodes?.length || 4} States</span>
                     </div>
                   </div>
-                </div>
-
-                {/* Recommended Deployment Card */}
-                <div className="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-700/60 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                      ⭐ Recommended Target
-                    </span>
-                    <span className="text-xs font-bold text-white">
-                      {recOption?.estimated_monthly_cost_inr ? (recOption.estimated_monthly_cost_inr.nominal === 0 ? '₹0 / mo' : `₹${recOption.estimated_monthly_cost_inr.nominal.toLocaleString('en-IN')}/mo`) : '₹0 / mo'}
-                    </span>
-                  </div>
-                  <p className="text-xs font-bold text-white">{recOption?.display_name || 'Recommended Target'}</p>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">{recOption?.why_recommended_bullet || 'Cost effective & secure'}</p>
                 </div>
 
                 {/* Database Spec */}
@@ -473,9 +472,14 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                   </span>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-200 font-semibold">PostgreSQL 15 (ACID Relational)</span>
-                    <span className="text-emerald-400 font-mono text-[11px]">₹0 License (Free)</span>
+                    <span className="text-emerald-400 font-mono text-[11px]">₹0 Sandbox</span>
                   </div>
                   <p className="text-[11px] text-slate-400">{candidateIr.entities.length} entities with strict foreign key constraints</p>
+                </div>
+
+                {/* Note about production */}
+                <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] text-slate-400">
+                  💡 <span className="text-slate-300 font-semibold">Production Cloud Hosting (AWS / Azure / GCP / On-Prem)</span> cost analysis is configured when you promote to production after testing.
                 </div>
 
               </div>
@@ -485,11 +489,17 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
             {previewTab === 'architecture' && (
               <div className="space-y-3 overflow-y-auto max-h-[460px] pr-1 text-xs">
                 <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Estimated 4-Way Infrastructure Costs
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Production Cloud Sizing
+                    </span>
+                    <span className="text-[10px] text-indigo-400 font-semibold">On Promotion</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Sized for {reqProfile.total_registered_users} registered users ({reqProfile.concurrent_users} peak concurrent).
+                  </p>
                   
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 pt-1">
                     {(Object.values(currentPlan.profiles || {}) as DeploymentProfileOption[]).map((p) => (
                       <div key={p.target_key} className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
                         <div>
@@ -522,7 +532,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
               onClick={handleProceedToReview}
               className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all"
             >
-              <span>Review Architecture & Cost Model</span>
+              <span>Review Blueprint & Launch Testbed</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

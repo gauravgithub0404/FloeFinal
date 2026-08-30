@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FloeApp, IntermediateRepresentation, GenerationRun, AgentExecution, AuditLogEntry } from './types/floe';
 import { LEAVE_MANAGEMENT_IR, EXPENSE_MANAGEMENT_IR } from './data/domains';
 import { Navbar } from './components/Navbar';
@@ -7,13 +7,14 @@ import { RequirementsChat } from './components/RequirementsChat';
 import { ReviewScreen } from './components/ReviewScreen';
 import { GenerationProgress } from './components/GenerationProgress';
 import { AppDetailView } from './components/AppDetailView';
+import { StandaloneTestbed } from './components/StandaloneTestbed';
 import { AuditLogModal } from './components/AuditLogModal';
 import { UiSuggestionsModal } from './components/UiSuggestionsModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'review' | 'generating' | 'app_detail'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'review' | 'generating' | 'app_detail' | 'standalone_testbed'>('dashboard');
   
   // Usability mode: Friendly Mode (default) vs Developer Mode
   const [isDevMode, setIsDevMode] = useState<boolean>(false);
@@ -23,6 +24,17 @@ export default function App() {
   const [selectedApp, setSelectedApp] = useState<FloeApp | null>(null);
   const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>(LEAVE_MANAGEMENT_IR);
   const [targetDomainId, setTargetDomainId] = useState<string | undefined>(undefined);
+
+  // Check URL parameters for direct testbed link (?testbed=... or ?mode=testbed)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const isTestbedParam = params.get('testbed') || params.get('mode') === 'testbed' || window.location.hash.includes('testbed');
+      if (isTestbedParam) {
+        setCurrentView('standalone_testbed');
+      }
+    }
+  }, []);
 
   // Generation runs & audit state - starts empty
   const [generationRuns, setGenerationRuns] = useState<GenerationRun[]>([]);
@@ -108,6 +120,24 @@ export default function App() {
     setSelectedApp(app);
     setCurrentView('app_detail');
   };
+
+  // If in standalone testbed mode, render the full standalone application view
+  if (currentView === 'standalone_testbed') {
+    const activeIr = selectedApp?.ir || candidateIr || LEAVE_MANAGEMENT_IR;
+    return (
+      <StandaloneTestbed
+        ir={activeIr}
+        appName={selectedApp?.name || activeIr.name}
+        onBackToStudio={() => {
+          // Clear query params without full reload
+          if (typeof window !== 'undefined' && window.history) {
+            window.history.pushState({}, '', window.location.pathname);
+          }
+          setCurrentView('dashboard');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans">
