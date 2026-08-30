@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { IntermediateRepresentation } from '../types/floe';
+import { AuthUser, PRESET_USERS, UserRole, checkPermission } from '../types/auth';
+import { AppLoginScreen } from './auth/AppLoginScreen';
+import { RbacMatrixViewer } from './auth/RbacMatrixViewer';
 import { 
   Play, Sparkles, CheckCircle2, XCircle, Clock, ShieldCheck, User, 
   ArrowRight, RefreshCw, Send, AlertCircle, Info, Database, Headset, 
   MessageSquare, Tag, Paperclip, BarChart3, Users, Check, AlertTriangle, 
-  Filter, Zap, Shield, HelpCircle
+  Filter, Zap, Shield, HelpCircle, LogOut, Key, Lock, ChevronDown
 } from 'lucide-react';
 
 interface LiveAppSandboxProps {
@@ -49,7 +52,7 @@ interface SimulatedTicket {
   comments: Array<{
     id: string;
     author: string;
-    role: 'employee' | 'agent';
+    role: UserRole;
     text: string;
     timestamp: string;
     isInternal?: boolean;
@@ -197,17 +200,44 @@ export const INITIAL_SAMPLE_TICKETS: SimulatedTicket[] = [
   }
 ];
 
-export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduction }) => {
+export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduction, appName = ir.name }) => {
   const isItsm = ir.domain === 'it-service-desk' || 
     ir.name.toLowerCase().includes('service') || 
     ir.name.toLowerCase().includes('ticket') || 
     ir.name.toLowerCase().includes('itsm');
 
+  // Authentication & RBAC State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser>(PRESET_USERS.employee);
+  const [activeMainTab, setActiveMainTab] = useState<'app_views' | 'rbac_governance'>('app_views');
+
   // Roles toggle
-  const [activeRole, setActiveRole] = useState<'employee' | 'agent' | 'manager' | 'admin'>(isItsm ? 'employee' : 'employee');
+  const [activeRole, setActiveRole] = useState<UserRole>('employee');
 
   // Active Employee selection for Leave App
   const [selectedEmployee, setSelectedEmployee] = useState<SampleEmployee>(SAMPLE_EMPLOYEES[0]);
+
+  // Handle Login
+  const handleLoginSuccess = (user: AuthUser) => {
+    setCurrentUser(user);
+    setActiveRole(user.role);
+    setIsAuthenticated(true);
+    setActiveMainTab('app_views');
+  };
+
+  // Handle Sign Out
+  const handleSignOut = () => {
+    setIsAuthenticated(false);
+  };
+
+  // Handle Fast Impersonate / Role Change
+  const handleSwitchUserRole = (role: UserRole) => {
+    setActiveRole(role);
+    setCurrentUser(PRESET_USERS[role]);
+    if (role === 'employee') {
+      setSelectedEmployee(SAMPLE_EMPLOYEES[0]);
+    }
+  };
 
   // === ITSM State ===
   const [tickets, setTickets] = useState<SimulatedTicket[]>(INITIAL_SAMPLE_TICKETS);
@@ -341,6 +371,11 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
 
   // Agent Status Update
   const handleUpdateTicketStatus = (ticketId: string, newStatus: SimulatedTicket['status']) => {
+    if (!checkPermission(currentUser.role, 'wf:triage')) {
+      alert(`[RBAC Policy Violation] Persona ${currentUser.name} (${currentUser.role}) does not have 'wf:triage' permission to update ticket status.`);
+      return;
+    }
+
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
       const isResolving = newStatus === 'resolved';
@@ -352,9 +387,9 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
           ...t.comments,
           {
             id: `c-${Date.now()}`,
-            author: activeRole === 'agent' ? 'Service Desk Agent' : 'System',
-            role: 'agent',
-            text: `Status changed to: ${newStatus.toUpperCase().replace('_', ' ')}`,
+            author: activeRole === 'agent' ? 'Service Desk Agent' : currentUser.name,
+            role: currentUser.role === 'admin' ? 'admin' : 'agent',
+            text: `Status changed to: ${newStatus.toUpperCase().replace('_', ' ')} by ${currentUser.name}`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]
@@ -368,7 +403,12 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
     if (!text || !text.trim()) return;
 
     const isInternal = !!isInternalNote[ticketId];
-    const author = activeRole === 'employee' ? (ticketRequesterName || 'Alex Rivera') : 'Sarah Chen (Service Desk)';
+    if (isInternal && !checkPermission(currentUser.role, 'sec:internal_notes')) {
+      alert(`[RBAC Policy Violation] Persona ${currentUser.name} (${currentUser.role}) is forbidden from adding internal agent notes ('sec:internal_notes').`);
+      return;
+    }
+
+    const author = activeRole === 'employee' ? (ticketRequesterName || currentUser.name) : `${currentUser.name} (${currentUser.role.toUpperCase()})`;
 
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
@@ -379,7 +419,7 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
           {
             id: `c-${Date.now()}`,
             author,
-            role: activeRole === 'employee' ? 'employee' : 'agent',
+            role: currentUser.role,
             text,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isInternal
@@ -394,6 +434,11 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
   // Submit Leave Request
   const handleSubmitLeaveRequest = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!checkPermission(currentUser.role, 'rec:create')) {
+      setSubmissionFeedback(`❌ RBAC Violation: Role ${currentUser.role} does not have record creation authority.`);
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmissionFeedback(null);
 
@@ -440,6 +485,11 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
   };
 
   const handleManagerDecisionLeave = (reqId: string, action: 'approve' | 'reject') => {
+    if (!checkPermission(currentUser.role, 'wf:approve_reject')) {
+      alert(`[RBAC Policy Violation] Persona ${currentUser.name} (${currentUser.role}) does not have 'wf:approve_reject' manager permission.`);
+      return;
+    }
+
     const target = requests.find(r => r.id === reqId);
     if (!target) return;
 
@@ -453,7 +503,7 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
           ? {
               ...r,
               status: action === 'approve' ? 'approved' : 'rejected',
-              managerNotes: action === 'approve' ? 'Approved via Manager Decision Gate' : 'Denied due to scheduling'
+              managerNotes: action === 'approve' ? `Approved by ${currentUser.name} (Manager Gate)` : `Denied by ${currentUser.name}`
             }
           : r
       )
@@ -470,30 +520,117 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
   const openTicketsCount = tickets.filter(t => t.status !== 'resolved').length;
   const p1Count = tickets.filter(t => t.priority === 'P1_Critical' && t.status !== 'resolved').length;
 
+  // 1. Unauthenticated State: Show full enterprise login screen
+  if (!isAuthenticated) {
+    return (
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden text-slate-100">
+        <AppLoginScreen 
+          ir={ir}
+          appName={appName}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      </div>
+    );
+  }
+
+  // Helper to determine avatar initials
+  const userInitials = currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
+
   return (
     <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden text-slate-100">
       
-      {/* Top Header & Role Switcher */}
+      {/* Top Header: Enterprise Navigation & Authenticated User Profile */}
       <div className="p-4 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-            <Play className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white">{ir.name}</span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                🧪 Free Test Environment (₹0)
-              </span>
+        
+        {/* Left: App Identity & Navigation Mode Switcher */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+              <Play className="w-4 h-4" />
             </div>
-            <p className="text-xs text-slate-400">
-              {isItsm ? 'Real-time SLA routing, agent assignment, and ticket lifecycle execution.' : 'Executing RecordService.transition() and WorkflowExecutor in-browser.'}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">{appName}</span>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  🧪 Cloud Testbed (₹0)
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                {isItsm ? 'Service desk SLA routing, agent workflows & ticket lifecycle.' : 'PostgreSQL RecordService & Workflow Engine in-browser.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Main Navigation Tabs */}
+          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+            <button
+              onClick={() => setActiveMainTab('app_views')}
+              className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                activeMainTab === 'app_views' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>💻 Application Views</span>
+            </button>
+            <button
+              onClick={() => setActiveMainTab('rbac_governance')}
+              className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                activeMainTab === 'rbac_governance' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>🛡️ RBAC Permissions Matrix</span>
+            </button>
           </div>
         </div>
 
-        {/* Go to Production & Persona Switcher */}
+        {/* Right: Authenticated User & Impersonation Actions */}
         <div className="flex flex-wrap items-center gap-3">
+          
+          {/* User Profile Pill */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold text-[10px] border border-indigo-500/40">
+              {userInitials}
+            </div>
+            <div className="text-left hidden sm:block">
+              <span className="font-semibold text-white block leading-tight text-[11px]">{currentUser.name}</span>
+              <span className="text-[9px] text-slate-400 font-mono block leading-tight">{currentUser.email}</span>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+              currentUser.role === 'admin' ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+              currentUser.role === 'manager' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+              currentUser.role === 'agent' ? 'bg-sky-950 text-sky-300 border border-sky-800' :
+              'bg-indigo-950 text-indigo-300 border border-indigo-800'
+            }`}>
+              {currentUser.role}
+            </span>
+          </div>
+
+          {/* Quick Impersonate Dropdown */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <select
+              value={currentUser.role}
+              onChange={(e) => handleSwitchUserRole(e.target.value as UserRole)}
+              className="bg-slate-900 border border-slate-700 hover:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
+              title="Test application behavior under different role permissions"
+            >
+              <option value="employee">👨‍💻 Impersonate: Employee (Alex)</option>
+              <option value="agent">🎧 Impersonate: Agent (Sarah)</option>
+              <option value="manager">👔 Impersonate: Manager (Marcus)</option>
+              <option value="admin">🛡️ Impersonate: Admin (Elena)</option>
+            </select>
+          </div>
+
+          {/* Sign Out Button */}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+            title="Log out and test Login screen"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Sign Out</span>
+          </button>
+
           {onGoToProduction && (
             <button
               onClick={onGoToProduction}
@@ -503,68 +640,15 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
               <span>Go to Production 🚀</span>
             </button>
           )}
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium hidden sm:inline">Active Persona:</span>
-            <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
-              <button
-                onClick={() => setActiveRole('employee')}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                  activeRole === 'employee' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                Employee View
-              </button>
-              
-              {isItsm ? (
-                <button
-                  onClick={() => setActiveRole('agent')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors relative ${
-                    activeRole === 'agent' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <span>Service Desk Agent</span>
-                  {openTicketsCount > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-indigo-500 text-white font-bold text-[10px]">
-                      {openTicketsCount}
-                    </span>
-                  )}
-                </button>
-              ) : null}
-
-              <button
-                onClick={() => setActiveRole('manager')}
-                className={`px-3 py-1 rounded-md font-medium transition-colors relative ${
-                  activeRole === 'manager' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                <span>Manager & SLA View</span>
-                {isItsm && p1Count > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold text-[10px]">
-                    {p1Count} P1
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveRole('admin')}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                  activeRole === 'admin' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                Audit & DDL Logs
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Free Test Environment Resource Limits Banner */}
-      <div className="px-6 py-2.5 bg-indigo-950/80 border-b border-indigo-900/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="px-6 py-2 bg-indigo-950/80 border-b border-indigo-900/60 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 text-indigo-200">
           <Info className="w-4 h-4 text-indigo-400 shrink-0" />
           <span>
-            <b>Testbed Constraints:</b> Max 10 users • 1 GB Storage • 7 Days Max Runtime • Limited CPU/RAM • No SLA • Disposable Data
+            <b>RBAC Session Active:</b> Authenticated as <b className="text-white">{currentUser.name}</b> with <code className="font-mono text-indigo-300 uppercase">{currentUser.role}</code> authority & row-level security.
           </span>
         </div>
 
@@ -577,11 +661,83 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
       {/* Main Container */}
       <div className="p-6 bg-slate-900/70">
         
-        {/* ========================================================= */}
-        {/* === ITSM APPLICATION RUNTIME ============================ */}
-        {/* ========================================================= */}
-        {isItsm ? (
+        {/* RBAC MATRIX VIEW */}
+        {activeMainTab === 'rbac_governance' ? (
+          <RbacMatrixViewer 
+            currentUser={currentUser} 
+            onSwitchRole={handleSwitchUserRole} 
+          />
+        ) : (
           <>
+            {/* Persona Role Sub-Switcher (when in application views) */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-medium">Select Operational View:</span>
+                <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+                  <button
+                    onClick={() => setActiveRole('employee')}
+                    className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                      activeRole === 'employee' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    Employee View
+                  </button>
+                  
+                  {isItsm ? (
+                    <button
+                      onClick={() => setActiveRole('agent')}
+                      className={`px-3 py-1 rounded-md font-medium transition-colors relative ${
+                        activeRole === 'agent' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <span>Service Desk Agent</span>
+                      {openTicketsCount > 0 && (
+                        <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-indigo-500 text-white font-bold text-[10px]">
+                          {openTicketsCount}
+                        </span>
+                      )}
+                    </button>
+                  ) : null}
+
+                  <button
+                    onClick={() => setActiveRole('manager')}
+                    className={`px-3 py-1 rounded-md font-medium transition-colors relative ${
+                      activeRole === 'manager' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <span>Manager & SLA View</span>
+                    {isItsm && p1Count > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold text-[10px]">
+                        {p1Count} P1
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveRole('admin')}
+                    className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                      activeRole === 'admin' ? 'bg-indigo-600 text-white font-semibold shadow-xs' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    Audit & DDL Logs
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Role Indicator */}
+              <div className="text-xs text-slate-400 flex items-center gap-2">
+                <span>Active Scope:</span>
+                <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-white font-mono font-semibold uppercase text-[11px]">
+                  {activeRole}
+                </span>
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* === ITSM APPLICATION RUNTIME ============================ */}
+            {/* ========================================================= */}
+            {isItsm ? (
+              <>
             {/* 1. ITSM Employee View */}
             {activeRole === 'employee' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -819,6 +975,31 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
 
             {/* 2. ITSM Service Desk Agent View */}
             {activeRole === 'agent' && (
+              !checkPermission(currentUser.role, 'wf:triage') ? (
+                <div className="bg-slate-950 p-8 rounded-xl border border-rose-900/60 text-center space-y-4 max-w-xl mx-auto my-8">
+                  <div className="w-12 h-12 rounded-full bg-rose-600/20 text-rose-400 flex items-center justify-center border border-rose-500/30 mx-auto">
+                    <Headset className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase font-bold text-rose-400 bg-rose-950/80 px-2.5 py-0.5 rounded border border-rose-800">
+                      HTTP 403 Forbidden • RBAC Access Policy Guard
+                    </span>
+                    <h4 className="text-base font-bold text-white mt-2">Support Agent Privilege Required</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Your current persona <b>{currentUser.name}</b> (<span className="text-indigo-400 uppercase font-mono font-bold">{currentUser.role}</span>) does not possess the <code className="text-rose-300 font-mono">wf:triage</code> permission required to access internal ticket queues and update ticket statuses.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleSwitchUserRole('agent')}
+                      className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                    >
+                      <Headset className="w-4 h-4" />
+                      <span>Impersonate Support Agent (Sarah Chen) →</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
                   <div>
@@ -977,10 +1158,36 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
                   </div>
                 )}
               </div>
+              )
             )}
 
             {/* 3. ITSM Manager View */}
             {activeRole === 'manager' && (
+              !checkPermission(currentUser.role, 'wf:approve_reject') ? (
+                <div className="bg-slate-950 p-8 rounded-xl border border-rose-900/60 text-center space-y-4 max-w-xl mx-auto my-8">
+                  <div className="w-12 h-12 rounded-full bg-rose-600/20 text-rose-400 flex items-center justify-center border border-rose-500/30 mx-auto">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase font-bold text-rose-400 bg-rose-950/80 px-2.5 py-0.5 rounded border border-rose-800">
+                      HTTP 403 Forbidden • RBAC Policy Guard
+                    </span>
+                    <h4 className="text-base font-bold text-white mt-2">Manager Approval Privileges Required</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Your current authenticated persona <b>{currentUser.name}</b> (<span className="text-indigo-400 uppercase font-mono font-bold">{currentUser.role}</span>) does not possess the <code className="text-rose-300 font-mono">wf:approve_reject</code> permission required to authorize requests or view SLA escalation metrics.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleSwitchUserRole('manager')}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Impersonate Manager (Marcus Vance) →</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="space-y-6">
                 
                 {/* KPI Metrics Row */}
@@ -1129,6 +1336,7 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
                   </div>
                 </div>
               </div>
+              )
             )}
           </>
         ) : (
@@ -1363,6 +1571,31 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
 
             {/* Role: Manager View (Leave) */}
             {activeRole === 'manager' && (
+              !checkPermission(currentUser.role, 'wf:approve_reject') ? (
+                <div className="bg-slate-950 p-8 rounded-xl border border-rose-900/60 text-center space-y-4 max-w-xl mx-auto my-8">
+                  <div className="w-12 h-12 rounded-full bg-rose-600/20 text-rose-400 flex items-center justify-center border border-rose-500/30 mx-auto">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase font-bold text-rose-400 bg-rose-950/80 px-2.5 py-0.5 rounded border border-rose-800">
+                      HTTP 403 Forbidden • RBAC Policy Guard
+                    </span>
+                    <h4 className="text-base font-bold text-white mt-2">Manager Approval Authority Required</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Your current persona <b>{currentUser.name}</b> (<span className="text-indigo-400 uppercase font-mono font-bold">{currentUser.role}</span>) does not possess the <code className="text-rose-300 font-mono">wf:approve_reject</code> permission required to make managerial decisions on leave requests.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleSwitchUserRole('manager')}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Impersonate Manager (Marcus Vance) →</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1449,6 +1682,7 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
                   </div>
                 )}
               </div>
+              )
             )}
           </>
         )}
@@ -1457,6 +1691,31 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
         {/* === SHARED AUDIT & DDL LOGS ============================= */}
         {/* ========================================================= */}
         {activeRole === 'admin' && (
+          !checkPermission(currentUser.role, 'sys:audit_logs') ? (
+            <div className="bg-slate-950 p-8 rounded-xl border border-rose-900/60 text-center space-y-4 max-w-xl mx-auto my-8">
+              <div className="w-12 h-12 rounded-full bg-rose-600/20 text-rose-400 flex items-center justify-center border border-rose-500/30 mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono uppercase font-bold text-rose-400 bg-rose-950/80 px-2.5 py-0.5 rounded border border-rose-800">
+                  HTTP 403 Forbidden • Super Admin Clearance
+                </span>
+                <h4 className="text-base font-bold text-white mt-2">Administrator DDL & Telemetry Restricted</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Your current persona <b>{currentUser.name}</b> (<span className="text-indigo-400 uppercase font-mono font-bold">{currentUser.role}</span>) does not possess the <code className="text-rose-300 font-mono">sys:audit_logs</code> permission. Access to raw PostgreSQL transaction logs is restricted to Super Administrators.
+                </p>
+              </div>
+              <div className="pt-2 flex items-center justify-center gap-3">
+                <button
+                  onClick={() => handleSwitchUserRole('admin')}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Impersonate Super Admin (Elena Rostova) →</span>
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1538,6 +1797,9 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
               </table>
             </div>
           </div>
+          )
+        )}
+          </>
         )}
 
         {/* Bottom "Ready for Production?" Conversion Card */}
