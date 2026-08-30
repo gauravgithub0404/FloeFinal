@@ -47,7 +47,7 @@ export class RenderTestProvider extends BaseDeploymentProvider {
     onProgress?: (stage: DeploymentStage, log: string, status: DeploymentStatus) => void
   ): Promise<DeploymentStatus> {
     const sanitizedDomain = request.domain.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30);
-    const deploymentId = `dep_${sanitizedDomain}_${Date.now().toString(36)}`;
+    const deploymentId = `dep_${sanitizedDomain}_${(typeof crypto.randomUUID === 'function' ? crypto.randomUUID().replace(/-/g, '').slice(0, 12) : Date.now().toString(36))}`;
     const serviceName = `${sanitizedDomain}-test-api`;
     const dbName = `${sanitizedDomain.replace(/-/g, '_')}_test_db`;
     
@@ -56,7 +56,7 @@ export class RenderTestProvider extends BaseDeploymentProvider {
     const testbedServiceUrl = `${origin}/api/testbed/${sanitizedDomain}`;
     const healthEndpoint = `${testbedServiceUrl}/health`;
     const gitRepoUrl = request.gitRepoUrl || `https://github.com/floe-generated/${sanitizedDomain}.git`;
-    const gitCommitSha = `git-${Math.random().toString(36).substring(2, 9)}`;
+    const gitCommitSha = `git-${(typeof crypto.randomUUID === 'function' ? crypto.randomUUID().replace(/-/g, '').slice(0, 8) : Date.now().toString(36))}`;
     const expiresAt = new Date(Date.now() + this.policy.maxDays * 24 * 60 * 60 * 1000).toISOString();
 
     const deployment: DeploymentStatus = {
@@ -65,8 +65,8 @@ export class RenderTestProvider extends BaseDeploymentProvider {
       providerId: 'render',
       stage: 'validating_ir',
       status: 'building',
-      webServiceId: `srv_${sanitizedDomain}_01`,
-      databaseId: `dpg_${sanitizedDomain}_01`,
+      webServiceId: undefined,
+      databaseId: undefined,
       webServiceName: serviceName,
       databaseName: dbName,
       serviceUrl: testbedServiceUrl,
@@ -195,84 +195,63 @@ export class RenderTestProvider extends BaseDeploymentProvider {
 
   /**
    * Authoritative Health Check Execution
-   * Strictly enforces: 200 OK. If unreachable or non-200, returns healthy: false (ZERO SYNTHETIC FALLBACK).
+   * Strictly executes real HTTP GET request. Zero synthetic fallbacks.
    */
   private async executeAuthoritativeHealthCheck(endpointUrl: string, expectedAppName: string): Promise<HealthStatus> {
     const startTime = Date.now();
     try {
-      if (typeof window !== 'undefined' && window.fetch) {
-        // Try direct or proxied fetch
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
-        try {
-          // Check via health proxy or direct
-          const proxyUrl = `/api/render/health-proxy?url=${encodeURIComponent(endpointUrl)}`;
-          const checkUrl = endpointUrl.startsWith('http') && !endpointUrl.includes(window.location.host) ? proxyUrl : endpointUrl;
-          
-          const res = await fetch(checkUrl, {
-            method: 'GET',
-            signal: controller.signal,
-            headers: { 'Accept': 'application/json' }
-          });
-          clearTimeout(timeoutId);
-          const latencyMs = Date.now() - startTime;
-          
-          if (res.ok) {
-            const data = await res.json().catch(() => ({}));
-            // If response came from proxy, verify proxy payload
-            if (data && typeof data.healthy === 'boolean') {
-              return {
-                healthy: data.healthy,
-                statusCode: data.statusCode || res.status,
-                latencyMs: data.latencyMs || latencyMs,
-                checkedAt: new Date().toISOString(),
-                details: data.details,
-                error: data.error
-              };
-            }
-            return {
-              healthy: true,
-              statusCode: res.status,
-              latencyMs,
-              checkedAt: new Date().toISOString(),
-              details: { endpoint: endpointUrl, ...data }
-            };
-          } else {
-            return {
-              healthy: false,
-              statusCode: res.status,
-              latencyMs,
-              checkedAt: new Date().toISOString(),
-              error: `Health check returned HTTP ${res.status}`
-            };
-          }
-        } catch (fetchErr: any) {
-          clearTimeout(timeoutId);
-          return {
-            healthy: false,
-            statusCode: 503,
-            latencyMs: Date.now() - startTime,
-            checkedAt: new Date().toISOString(),
-            error: fetchErr.name === 'AbortError' ? 'Health check timed out after 3500ms' : (fetchErr.message || 'Service connection failed')
-          };
-        }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      // In browser, proxy external URLs to avoid CORS restrictions if needed
+      let checkUrl = endpointUrl;
+      if (typeof window !== 'undefined' && endpointUrl.startsWith('http') && !endpointUrl.includes(window.location.host)) {
+        checkUrl = `/api/render/health-proxy?url=${encodeURIComponent(endpointUrl)}`;
       }
 
-      // In Node.js environment
-      return {
-        healthy: true,
-        statusCode: 200,
-        latencyMs: 15,
-        checkedAt: new Date().toISOString(),
-        details: { app: expectedAppName, status: 'healthy', database: 'connected' }
-      };
+      const res = await fetch(checkUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      clearTimeout(timeoutId);
+      const latencyMs = Date.now() - startTime;
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data && typeof data.healthy === 'boolean') {
+          return {
+            healthy: data.healthy,
+            statusCode: data.statusCode || res.status,
+            latencyMs: data.latencyMs || latencyMs,
+            checkedAt: new Date().toISOString(),
+            details: data.details,
+            error: data.error
+          };
+        }
+        return {
+          healthy: true,
+          statusCode: res.status,
+          latencyMs,
+          checkedAt: new Date().toISOString(),
+          details: { endpoint: endpointUrl, ...data }
+        };
+      } else {
+        return {
+          healthy: false,
+          statusCode: res.status,
+          latencyMs,
+          checkedAt: new Date().toISOString(),
+          error: `Health check endpoint returned HTTP ${res.status}: ${res.statusText}`
+        };
+      }
     } catch (err: any) {
       return {
         healthy: false,
         statusCode: 503,
         latencyMs: Date.now() - startTime,
         checkedAt: new Date().toISOString(),
-        error: err.message || 'Health check execution failed'
+        error: err.name === 'AbortError' ? 'Health check timed out after 4000ms' : (err.message || 'Health check execution failed')
       };
     }
   }

@@ -48,16 +48,16 @@ export interface RenderApiStatus {
   error?: string;
 }
 
-const RENDER_API_KEY = process.env.RENDER_API_KEY || 'rnd_dYj8qmvbJgrfNTNg1MwRGbcpLDd1';
+const RENDER_API_KEY = process.env.RENDER_API_KEY || '';
 const RENDER_API_BASE = 'https://api.render.com/v1';
 
 /**
- * Make an authenticated call to Render API
+ * Make an authenticated call to Render API (server-side only)
  */
 async function callRenderApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const apiKey = RENDER_API_KEY;
+  const apiKey = process.env.RENDER_API_KEY;
   if (!apiKey) {
-    throw new Error('RENDER_API_KEY is not configured');
+    throw new Error('RENDER_API_KEY is not configured on server');
   }
 
   const res = await fetch(`${RENDER_API_BASE}${endpoint}`, {
@@ -68,7 +68,7 @@ async function callRenderApi<T>(endpoint: string, options: RequestInit = {}): Pr
       'Content-Type': 'application/json',
       ...(options.headers || {})
     },
-    signal: AbortSignal.timeout(10000)
+    signal: AbortSignal.timeout(15000)
   });
 
   if (!res.ok) {
@@ -77,6 +77,106 @@ async function callRenderApi<T>(endpoint: string, options: RequestInit = {}): Pr
   }
 
   return res.json();
+}
+
+/**
+ * Create a new Web Service on Render via Render API
+ */
+export async function createRenderWebService(params: {
+  name: string;
+  repo: string;
+  branch?: string;
+  envVars?: Array<{ key: string; value: string }>;
+  plan?: string;
+  region?: string;
+  healthCheckPath?: string;
+}): Promise<RenderService> {
+  const owners = await getRenderOwners();
+  const ownerId = owners[0]?.id;
+  if (!ownerId) {
+    throw new Error('No Render workspace owner found for account');
+  }
+
+  const payload = {
+    type: 'web_service',
+    name: params.name,
+    ownerId,
+    repo: params.repo,
+    branch: params.branch || 'main',
+    autoDeploy: 'yes',
+    serviceDetails: {
+      env: 'node',
+      plan: params.plan || 'free',
+      region: params.region || 'oregon',
+      buildCommand: 'npm install && npm run build',
+      startCommand: 'npm start',
+      healthCheckPath: params.healthCheckPath || '/api/health',
+      envVars: params.envVars || [
+        { key: 'NODE_ENV', value: 'production' },
+        { key: 'PORT', value: '10000' }
+      ]
+    }
+  };
+
+  const res = await callRenderApi<{ service: RenderService }>('/services', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+  return res.service;
+}
+
+/**
+ * Create a managed PostgreSQL database on Render
+ */
+export async function createRenderPostgres(params: {
+  name: string;
+  databaseName: string;
+  databaseUser?: string;
+  plan?: string;
+  region?: string;
+}): Promise<RenderPostgres> {
+  const owners = await getRenderOwners();
+  const ownerId = owners[0]?.id;
+  if (!ownerId) {
+    throw new Error('No Render workspace owner found for account');
+  }
+
+  const payload = {
+    name: params.name,
+    ownerId,
+    databaseName: params.databaseName,
+    databaseUser: params.databaseUser || 'floe_user',
+    plan: params.plan || 'free',
+    region: params.region || 'oregon',
+    version: '15'
+  };
+
+  const res = await callRenderApi<{ postgres: RenderPostgres }>('/postgres', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+  return res.postgres;
+}
+
+/**
+ * Trigger a new deploy on a Render Web Service
+ */
+export async function triggerRenderDeploy(serviceId: string, clearCache = false): Promise<{ id: string; status: string }> {
+  const res = await callRenderApi<{ deploy: { id: string; status: string } }>(`/services/${serviceId}/deploys`, {
+    method: 'POST',
+    body: JSON.stringify({ clearCache: clearCache ? 'clear' : 'do_not_clear' })
+  });
+  return res.deploy;
+}
+
+/**
+ * Get details of a Render Web Service
+ */
+export async function getRenderService(serviceId: string): Promise<RenderService> {
+  const res = await callRenderApi<{ service: RenderService }>(`/services/${serviceId}`);
+  return res.service;
 }
 
 /**

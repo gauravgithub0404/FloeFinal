@@ -119,6 +119,14 @@ export interface PipelineStageResult {
   metrics?: Record<string, string | number | boolean>;
 }
 
+export interface PipelineEvidenceItem {
+  stageId: PipelineStageId;
+  type: string;
+  payload: any;
+  hash: string;
+  timestamp: string;
+}
+
 export interface PipelineInstance {
   id: string;
   appId: string;
@@ -131,13 +139,7 @@ export interface PipelineInstance {
   policyConfig: GovernancePolicyConfig;
   governanceDecision?: GovernanceResult;
   stages: Record<PipelineStageId, PipelineStageResult>;
-  evidenceStore: Record<string, {
-    stageId: PipelineStageId;
-    type: string;
-    payload: any;
-    hash: string;
-    timestamp: string;
-  }>;
+  evidenceStore: Record<string, PipelineEvidenceItem>;
   artifact: {
     imageDigest?: string;
     imageTag?: string;

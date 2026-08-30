@@ -9,6 +9,27 @@ export interface GeneratedFile {
   description: string;
 }
 
+/**
+ * Strict SQL Identifier Whitelist Validator to prevent identifier injection
+ */
+export function validateSqlIdentifier(name: string): string {
+  if (!name || typeof name !== 'string') {
+    throw new Error('Invalid SQL identifier: must be a non-empty string');
+  }
+  const sanitized = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!/^[a-z][a-z0-9_]{0,62}$/.test(sanitized)) {
+    throw new Error(`Invalid SQL identifier format: "${name}". Must start with a letter and contain only alphanumeric characters or underscores.`);
+  }
+  const sqlKeywords = new Set([
+    'select', 'insert', 'update', 'delete', 'drop', 'alter', 'table', 'create',
+    'where', 'from', 'join', 'union', 'exec', 'execute', 'grant', 'revoke', 'truncate'
+  ]);
+  if (sqlKeywords.has(sanitized)) {
+    throw new Error(`SQL Identifier cannot be a reserved keyword: "${sanitized}"`);
+  }
+  return sanitized;
+}
+
 export function synthesizeRecordServiceCode(ir: IntermediateRepresentation): string {
   return `/**
  * =========================================================================
@@ -20,9 +41,11 @@ export function synthesizeRecordServiceCode(ir: IntermediateRepresentation): str
  * 1. Ad-hoc SQL mutations are strictly forbidden across controllers.
  * 2. All entity state changes must flow through transition() to ensure
  *    transactional integrity, mutation guard validation, and audit logging.
+ * 3. All SQL table and column identifiers are strictly validated against injection.
  */
 
 import { Pool } from 'pg';
+import crypto from 'crypto';
 
 export interface TransitionContext {
   workflowRunId: string;
@@ -39,8 +62,23 @@ export class RecordService {
     this.db = dbPool;
   }
 
+  /**
+   * Strictly validate SQL identifiers (tables, columns) to prevent SQL injection
+   */
+  private validateIdentifier(name: string): string {
+    const sanitized = String(name).trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!/^[a-z][a-z0-9_]{0,62}$/.test(sanitized)) {
+      throw new Error(\`Invalid SQL identifier: "\${name}"\`);
+    }
+    const keywords = ['select', 'insert', 'update', 'delete', 'drop', 'table', 'where'];
+    if (keywords.includes(sanitized)) {
+      throw new Error(\`SQL identifier cannot be a keyword: "\${sanitized}"\`);
+    }
+    return sanitized;
+  }
+
   private getTableName(entityName: string): string {
-    return entityName.toLowerCase() + 's';
+    return this.validateIdentifier(entityName) + 's';
   }
 
   async list(entityName: string, limit = 50, offset = 0): Promise<any[]> {
@@ -60,21 +98,27 @@ export class RecordService {
     return res.rows[0];
   }
 
+  /**
+   * Authoritative Creation - Enforces initial status and validation schema
+   */
   async create(entityName: string, data: Record<string, any>): Promise<any> {
     const table = this.getTableName(entityName);
     const cleanData = { ...data };
     if (!cleanData.id) {
-      cleanData.id = 'rec_' + Math.random().toString(36).substring(2, 9);
+      cleanData.id = 'rec_' + (typeof crypto.randomUUID === 'function' ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : Date.now().toString(36));
     }
     if (!cleanData.created_at) {
       cleanData.created_at = new Date().toISOString();
     }
+    if (!cleanData.status) {
+      cleanData.status = 'SUBMITTED';
+    }
     
-    const keys = Object.keys(cleanData);
+    const validatedKeys = Object.keys(cleanData).map(k => this.validateIdentifier(k));
     const values = Object.values(cleanData);
-    const placeholders = keys.map((_, i) => \`$\${i + 1}\`).join(', ');
+    const placeholders = validatedKeys.map((_, i) => \`$\${i + 1}\`).join(', ');
     const query = \`
-      INSERT INTO \${table} (\${keys.join(', ')})
+      INSERT INTO \${table} (\${validatedKeys.join(', ')})
       VALUES (\${placeholders})
       RETURNING *
     \`;
@@ -82,16 +126,20 @@ export class RecordService {
     return res.rows[0];
   }
 
+  /**
+   * Protected internal update - Ad-hoc mutations should prefer transition()
+   */
   async update(entityName: string, id: string, data: Record<string, any>): Promise<any> {
     const table = this.getTableName(entityName);
-    const keys = Object.keys(data).filter(k => k !== 'id');
-    const values = keys.map(k => data[k]);
-    const setClause = keys.map((k, i) => \`\${k} = $\${i + 1}\`).join(', ');
+    const rawKeys = Object.keys(data).filter(k => k !== 'id');
+    const validatedKeys = rawKeys.map(k => this.validateIdentifier(k));
+    const values = rawKeys.map(k => data[k]);
+    const setClause = validatedKeys.map((k, i) => \`\${k} = $\${i + 1}\`).join(', ');
     
     const query = \`
       UPDATE \${table}
       SET \${setClause}, updated_at = NOW()
-      WHERE id = $\${keys.length + 1}
+      WHERE id = $\${validatedKeys.length + 1}
       RETURNING *
     \`;
     const res = await this.db.query(query, [...values, id]);
@@ -367,7 +415,7 @@ app.post('/api/${plural}/:id/transition', async (req, res) => {
       req.params.id,
       targetStatus,
       {
-        workflowRunId: req.body.workflowRunId || 'run_' + Math.random().toString(36).substring(2, 9),
+        workflowRunId: req.body.workflowRunId || ('run_' + (typeof crypto.randomUUID === 'function' ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : Date.now().toString(36))),
         recordId: req.params.id,
         actor: actor || { id: 'usr-default', role: 'admin', email: 'admin@corp.com' },
         inputs: inputs || {}
