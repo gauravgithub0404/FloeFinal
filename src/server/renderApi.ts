@@ -107,13 +107,15 @@ export async function createRenderWebService(params: {
     serviceDetails: {
       env: 'node',
       plan: params.plan || 'free',
-      region: params.region || 'oregon',
-      buildCommand: 'npm install && npm run build',
-      startCommand: 'npm start',
+      region: params.region || 'singapore',
+      envSpecificDetails: {
+        buildCommand: 'npm install && npm run build',
+        startCommand: 'npm start'
+      },
       healthCheckPath: params.healthCheckPath || '/api/health',
       envVars: params.envVars || [
         { key: 'NODE_ENV', value: 'production' },
-        { key: 'PORT', value: '10000' }
+        { key: 'PORT', value: '3000' }
       ]
     }
   };
