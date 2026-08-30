@@ -15,7 +15,51 @@ import { InfrastructureModal } from './components/InfrastructureModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'review' | 'generating' | 'app_detail' | 'standalone_testbed'>('dashboard');
+  // Helper to determine initial view and active IR based on URL params / subdomain / hostname
+  const getInitialViewAndIr = (): { view: 'dashboard' | 'chat' | 'review' | 'generating' | 'app_detail' | 'standalone_testbed', ir: IntermediateRepresentation } => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const testbedParam = params.get('testbed') || params.get('app') || params.get('domain');
+      const hostname = window.location.hostname.toLowerCase();
+      const pathname = window.location.pathname.toLowerCase();
+
+      let targetDomain = testbedParam;
+      
+      // Auto-detect domain if hostname or path is domain-specific (e.g. floe-leave-management.onrender.com)
+      if (!targetDomain) {
+        if (hostname.includes('leave-management') || hostname.includes('leave') || pathname.startsWith('/leave')) {
+          targetDomain = 'leave-management';
+        } else if (hostname.includes('expense') || pathname.startsWith('/expense')) {
+          targetDomain = 'expense-management';
+        } else if (hostname.includes('ticket') || hostname.includes('service') || pathname.startsWith('/it-service')) {
+          targetDomain = 'it-service-desk';
+        } else if (hostname.includes('equipment') || hostname.includes('hardware') || pathname.startsWith('/it-equipment')) {
+          targetDomain = 'it-equipment';
+        }
+      }
+
+      if (targetDomain || params.get('mode') === 'testbed' || window.location.hash.includes('testbed')) {
+        let chosenIr = LEAVE_MANAGEMENT_IR;
+        if (targetDomain) {
+          const matched = DOMAINS.find(d => d.key === targetDomain || d.id === targetDomain || d.key.toLowerCase() === targetDomain.toLowerCase());
+          if (matched?.default_ir) {
+            chosenIr = matched.default_ir;
+          } else if (targetDomain.toLowerCase().includes('expense')) {
+            chosenIr = EXPENSE_MANAGEMENT_IR;
+          } else if (targetDomain.toLowerCase().includes('ticket') || targetDomain.toLowerCase().includes('service')) {
+            chosenIr = IT_SERVICE_DESK_IR;
+          } else if (targetDomain.toLowerCase().includes('equipment') || targetDomain.toLowerCase().includes('hardware')) {
+            chosenIr = IT_EQUIPMENT_IR;
+          }
+        }
+        return { view: 'standalone_testbed', ir: chosenIr };
+      }
+    }
+    return { view: 'dashboard', ir: LEAVE_MANAGEMENT_IR };
+  };
+
+  const initialSetup = getInitialViewAndIr();
+  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'review' | 'generating' | 'app_detail' | 'standalone_testbed'>(initialSetup.view);
   
   // Usability mode: Friendly Mode (default) vs Developer Mode
   const [isDevMode, setIsDevMode] = useState<boolean>(false);
@@ -23,31 +67,15 @@ export default function App() {
   // Applications state - starts empty with no pre-seeded default data
   const [apps, setApps] = useState<FloeApp[]>([]);
   const [selectedApp, setSelectedApp] = useState<FloeApp | null>(null);
-  const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>(LEAVE_MANAGEMENT_IR);
+  const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>(initialSetup.ir);
   const [targetDomainId, setTargetDomainId] = useState<string | undefined>(undefined);
 
-  // Check URL parameters for direct testbed link (?testbed=... or ?mode=testbed)
+  // Check URL parameters & Hostname changes dynamically
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const testbedParam = params.get('testbed');
-      const isTestbedMode = Boolean(testbedParam) || params.get('mode') === 'testbed' || window.location.hash.includes('testbed');
-      
-      if (isTestbedMode) {
-        if (testbedParam) {
-          const matched = DOMAINS.find(d => d.key === testbedParam || d.id === testbedParam || d.key.toLowerCase() === testbedParam.toLowerCase());
-          if (matched?.default_ir) {
-            setCandidateIr(matched.default_ir);
-          } else if (testbedParam.toLowerCase().includes('expense')) {
-            setCandidateIr(EXPENSE_MANAGEMENT_IR);
-          } else if (testbedParam.toLowerCase().includes('ticket') || testbedParam.toLowerCase().includes('service')) {
-            setCandidateIr(IT_SERVICE_DESK_IR);
-          } else if (testbedParam.toLowerCase().includes('equipment') || testbedParam.toLowerCase().includes('hardware')) {
-            setCandidateIr(IT_EQUIPMENT_IR);
-          } else {
-            setCandidateIr(LEAVE_MANAGEMENT_IR);
-          }
-        }
+      const setup = getInitialViewAndIr();
+      if (setup.view === 'standalone_testbed') {
+        setCandidateIr(setup.ir);
         setCurrentView('standalone_testbed');
       }
     }
