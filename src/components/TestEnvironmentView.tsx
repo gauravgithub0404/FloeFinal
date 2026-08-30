@@ -33,7 +33,7 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
       providerId: 'render',
       status: 'healthy',
       stage: 'healthy',
-      serviceUrl: `https://${(ir.domain || 'app').toLowerCase().replace(/[^a-z0-9]/g, '-')}-test.onrender.com`,
+      serviceUrl: getPublicTestbedUrl(ir.domain || 'app'),
       healthEndpoint: '/api/health',
       healthStatus: 'healthy',
       statusCode: 200,
