@@ -55,10 +55,10 @@ export function getLocalTestbedUrl(domain: string = 'leave-management'): string 
 }
 
 /**
- * Get Render Cloud Service URL
+ * Get Render Cloud Service URL (Deployed on Render.com)
  */
 export function getRenderCloudUrl(domain: string = 'leave-management'): string {
   const sanitizedDomain = (domain || 'app').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30);
-  return `https://${sanitizedDomain}-test.onrender.com`;
+  return `https://floe-${sanitizedDomain}.onrender.com`;
 }
 
