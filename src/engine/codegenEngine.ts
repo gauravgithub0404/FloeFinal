@@ -465,7 +465,12 @@ if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
 }
 
 const dbPool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://floe:development_only_password@localhost:5432/${ir.domain.replace(/-/g, '_')}'
+  connectionString: process.env.DATABASE_URL || undefined,
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  user: process.env.DB_USER || 'floe',
+  password: process.env.DB_PASSWORD || undefined,
+  database: process.env.DB_NAME || '${ir.domain.replace(/-/g, '_')}'
 });
 
 const recordService = new RecordService(dbPool);
@@ -636,9 +641,9 @@ export function synthesizeEnvExample(ir: IntermediateRepresentation): string {
 
 # Database Credentials (Never commit plaintext secrets)
 POSTGRES_USER="floe"
-POSTGRES_PASSWORD="change_me_to_secure_random_string"
+POSTGRES_PASSWORD=""
 POSTGRES_DB="${dbName}"
-DATABASE_URL="postgresql://floe:change_me_to_secure_random_string@postgres:5432/${dbName}"
+DATABASE_URL="postgresql://USER:PASSWORD@postgres:5432/${dbName}"
 
 # Server Ports
 PORT=4000
@@ -649,7 +654,7 @@ GEMINI_API_KEY=""
 ANTHROPIC_API_KEY=""
 
 # Security & Authentication
-APP_SECRET="generated-secure-session-secret"
+APP_SECRET=""
 `;
 }
 
@@ -889,6 +894,13 @@ COPY package*.json ./
 RUN npm install --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/schema.sql ./schema.sql
+
+# Non-root security user (Trivy DS002)
+USER node
+
+# Healthcheck probe (Trivy DS026)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:4000/api/health || exit 1
 
 EXPOSE 4000
 CMD ["node", "dist/server.js"]

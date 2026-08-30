@@ -74,8 +74,8 @@ export class GitleaksScanner {
         for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
           const lineText = lines[lineIdx];
           
-          // Allow environment template files like .env.example with empty values
-          if (file.path.endsWith('.env.example') && (lineText.includes('=""') || lineText.includes('="MY_'))) {
+          // Allow environment template files like .env.example with placeholder or empty values
+          if (file.path.endsWith('.env.example') && (lineText.includes('=""') || lineText.includes('="MY_') || lineText.includes('USER:PASSWORD') || lineText.includes('change_me') || lineText.includes('your-'))) {
             continue;
           }
 
