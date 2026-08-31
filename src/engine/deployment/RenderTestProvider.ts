@@ -361,8 +361,8 @@ export class RenderTestProvider extends BaseDeploymentProvider {
       logAndEmit('starting_service', `✓ Build completed on Render. Container online.`);
 
       // Step 8: Authoritative Health Check to Real Render Endpoint
-      logAndEmit('running_health_check', `Step 8/8: Authoritative Health Check: GET ${deployment.healthEndpoint}...`);
-      const health = await this.executeAuthoritativeHealthCheck(deployment.healthEndpoint);
+      logAndEmit('running_health_check', `Step 8/8: Authoritative Health Check: GET /api/deployments/${deployment.id}/health...`);
+      const health = await this.executeAuthoritativeHealthCheck(deployment.id, deployment.healthEndpoint);
 
       if (!health.healthy) {
         deployment.status = 'failed';
@@ -393,17 +393,14 @@ export class RenderTestProvider extends BaseDeploymentProvider {
     }
   }
 
-  private async executeAuthoritativeHealthCheck(endpointUrl: string): Promise<HealthStatus> {
+  private async executeAuthoritativeHealthCheck(deploymentId: string, _fallbackUrl?: string): Promise<HealthStatus> {
     const startTime = Date.now();
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      // Proxy remote onrender.com URLs via backend health proxy to avoid browser CORS issues
-      let checkUrl = endpointUrl;
-      if (typeof window !== 'undefined' && endpointUrl.startsWith('http') && !endpointUrl.includes(window.location.host)) {
-        checkUrl = `/api/render/health-proxy?url=${encodeURIComponent(endpointUrl)}`;
-      }
+      // Call authoritative deployment health endpoint
+      const checkUrl = `/api/deployments/${deploymentId}/health`;
 
       const res = await fetch(checkUrl, {
         method: 'GET',
@@ -420,7 +417,7 @@ export class RenderTestProvider extends BaseDeploymentProvider {
             healthy: data.healthy,
             statusCode: data.statusCode || res.status,
             latencyMs: data.latencyMs || latencyMs,
-            checkedAt: new Date().toISOString(),
+            checkedAt: data.checkedAt || new Date().toISOString(),
             details: data.details,
             error: data.error
           };
@@ -433,12 +430,13 @@ export class RenderTestProvider extends BaseDeploymentProvider {
           details: data
         };
       } else {
+        const errData = await res.json().catch(() => ({}));
         return {
           healthy: false,
           statusCode: res.status,
           latencyMs,
           checkedAt: new Date().toISOString(),
-          error: `Render health endpoint returned HTTP ${res.status}: ${res.statusText}`
+          error: errData.error || `Deployment health endpoint returned HTTP ${res.status}: ${res.statusText}`
         };
       }
     } catch (err: any) {

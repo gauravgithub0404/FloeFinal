@@ -17,32 +17,32 @@ export class FloeRuntimeSecurityProbe {
 
     try {
       if (typeof window !== 'undefined' && window.fetch) {
-        // Probe target endpoint or health proxy
-        const probeUrl = targetUrl.startsWith('http') && !targetUrl.includes(window.location.host)
-          ? `/api/render/health-proxy?url=${encodeURIComponent(targetUrl)}`
-          : targetUrl;
+        // Probe target endpoint directly (in-sandbox or via direct fetch)
+        const probeUrl = targetUrl;
 
         const res = await fetch(probeUrl, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(4000)
-        });
+        }).catch(() => null);
 
-        // 1. Inspect Security Headers
-        const xcto = res.headers.get('X-Content-Type-Options');
+        if (res) {
+          // 1. Inspect Security Headers
+          const xcto = res.headers.get('X-Content-Type-Options');
 
-        if (!xcto && !res.headers.get('x-content-type-options')) {
-          findings.push({
-            id: 'floe-dast-01',
-            tool: this.toolName,
-            category: 'DAST',
-            severity: 'low',
-            ruleId: 'FL-DAST-001',
-            title: 'X-Content-Type-Options Header Missing',
-            description: 'The Anti-MIME-Sniffing header X-Content-Type-Options was not set to nosniff.',
-            url: targetUrl,
-            remediation: 'Add `res.setHeader("X-Content-Type-Options", "nosniff")` in HTTP middleware.'
-          });
+          if (!xcto && !res.headers.get('x-content-type-options')) {
+            findings.push({
+              id: 'floe-dast-01',
+              tool: this.toolName,
+              category: 'DAST',
+              severity: 'low',
+              ruleId: 'FL-DAST-001',
+              title: 'X-Content-Type-Options Header Missing',
+              description: 'The Anti-MIME-Sniffing header X-Content-Type-Options was not set to nosniff.',
+              url: targetUrl,
+              remediation: 'Add `res.setHeader("X-Content-Type-Options", "nosniff")` in HTTP middleware.'
+            });
+          }
         }
 
         // 2. Fuzzing Probe with active SQL injection string
@@ -50,28 +50,27 @@ export class FloeRuntimeSecurityProbe {
         scannedEndpoints.push(fuzzUrl);
 
         try {
-          const fuzzProbeUrl = fuzzUrl.startsWith('http') && !fuzzUrl.includes(window.location.host)
-            ? `/api/render/health-proxy?url=${encodeURIComponent(fuzzUrl)}`
-            : fuzzUrl;
-
-          const fuzzRes = await fetch(fuzzProbeUrl, {
+          const fuzzRes = await fetch(fuzzUrl, {
             method: 'GET',
             signal: AbortSignal.timeout(3000)
-          });
-          const fuzzText = await fuzzRes.text().catch(() => '');
+          }).catch(() => null);
 
-          if (fuzzText.includes('syntax error at or near') || fuzzText.includes('pg_query')) {
-            findings.push({
-              id: 'floe-dast-sqli',
-              tool: this.toolName,
-              category: 'DAST',
-              severity: 'critical',
-              ruleId: 'FL-DAST-SQLI',
-              title: 'SQL Injection Vulnerability Detected at Runtime',
-              description: 'The endpoint exposed database error messages when passed SQL metacharacters.',
-              url: fuzzUrl,
-              remediation: 'Sanitize all input parameters with parameterized SQL queries.'
-            });
+          if (fuzzRes) {
+            const fuzzText = await fuzzRes.text().catch(() => '');
+
+            if (fuzzText.includes('syntax error at or near') || fuzzText.includes('pg_query')) {
+              findings.push({
+                id: 'floe-dast-sqli',
+                tool: this.toolName,
+                category: 'DAST',
+                severity: 'critical',
+                ruleId: 'FL-DAST-SQLI',
+                title: 'SQL Injection Vulnerability Detected at Runtime',
+                description: 'The endpoint exposed database error messages when passed SQL metacharacters.',
+                url: fuzzUrl,
+                remediation: 'Sanitize all input parameters with parameterized SQL queries.'
+              });
+            }
           }
         } catch {
           // Probe completed

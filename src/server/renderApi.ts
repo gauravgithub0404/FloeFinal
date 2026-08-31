@@ -48,14 +48,20 @@ export interface RenderApiStatus {
   error?: string;
 }
 
-const RENDER_API_KEY = process.env.RENDER_API_KEY || '';
+const getRenderApiKey = (): string => {
+  if (typeof process !== 'undefined' && process.env?.RENDER_API_KEY) {
+    return process.env.RENDER_API_KEY;
+  }
+  return '';
+};
+
 const RENDER_API_BASE = 'https://api.render.com/v1';
 
 /**
  * Make an authenticated call to Render API (server-side only)
  */
 async function callRenderApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const apiKey = process.env.RENDER_API_KEY;
+  const apiKey = getRenderApiKey();
   if (!apiKey) {
     throw new Error('RENDER_API_KEY is not configured on server');
   }
@@ -224,7 +230,7 @@ export async function listRenderPostgresDatabases(): Promise<RenderPostgres[]> {
  * Check Render API connection & list live cloud resources
  */
 export async function getRenderStatus(): Promise<RenderApiStatus> {
-  const apiKey = RENDER_API_KEY;
+  const apiKey = getRenderApiKey();
   if (!apiKey) {
     return {
       valid: false,

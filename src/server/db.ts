@@ -14,7 +14,14 @@ export interface DbStatus {
   error?: string;
 }
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://floe_f3rk_user:e0ONewONkgwy8m9MW0iTtpt1oMlmLoxT@dpg-da9r244s728c73eivetg-a.oregon-postgres.render.com/floe_f3rk';
+const getDatabaseUrl = (): string => {
+  if (typeof process !== 'undefined' && process.env?.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+  return 'postgresql://floe_f3rk_user:e0ONewONkgwy8m9MW0iTtpt1oMlmLoxT@dpg-da9r244s728c73eivetg-a.oregon-postgres.render.com/floe_f3rk';
+};
+
+const DATABASE_URL = getDatabaseUrl();
 
 let pool: Pool | null = null;
 let isInitialized = false;

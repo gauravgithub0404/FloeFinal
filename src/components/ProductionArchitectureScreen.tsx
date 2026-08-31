@@ -793,7 +793,7 @@ export const ProductionArchitectureScreen: React.FC<ProductionArchitectureScreen
 
                     <div className="pt-2 border-t border-slate-800/20">
                       <span className={`text-[10px] uppercase font-bold block ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {tcoView === 'infrastructure_only' ? 'Estimated Cloud Bill' : 'Estimated Total TCO'}
+                        {tcoView === 'infrastructure_only' ? 'Estimated monthly infrastructure cost' : 'Estimated Total TCO'}
                       </span>
                       <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="text-xl font-bold font-mono text-emerald-500">
@@ -802,6 +802,9 @@ export const ProductionArchitectureScreen: React.FC<ProductionArchitectureScreen
                             : `₹${(p?.tco_monthly_inr || 0).toLocaleString('en-IN')}`}
                         </span>
                         <span className={`text-xs ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>/ mo</span>
+                      </div>
+                      <div className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Architecture estimate • Actual bill: Provider-controlled
                       </div>
                     </div>
 
@@ -834,6 +837,22 @@ export const ProductionArchitectureScreen: React.FC<ProductionArchitectureScreen
                 </div>
               );
             })}
+          </div>
+
+          {/* Pricing Disclaimer & Distinction Notice */}
+          <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1.5">
+            <div className="flex items-center justify-between font-semibold text-slate-900">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Estimated monthly infrastructure cost</span>
+              </span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                Actual bill: Provider-controlled
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Actual charges may vary based on usage, network traffic, storage and provider pricing.
+            </p>
           </div>
         </div>
       )}

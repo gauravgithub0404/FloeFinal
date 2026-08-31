@@ -10,7 +10,7 @@ import {
   CheckCircle2, ArrowLeft, Cpu, Database, Shield, Zap, Sparkles, 
   UserCheck, Code, Edit3, ArrowRight, Server, Cloud, Globe, 
   HelpCircle, DollarSign, Laptop, Check, Info, Users, TrendingUp, AlertTriangle,
-  Palette
+  Palette, ShieldCheck
 } from 'lucide-react';
 
 interface ReviewScreenProps {
@@ -399,14 +399,17 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xs text-indigo-200/70">Estimated Monthly Infrastructure</div>
+              <div className="text-right space-y-1">
+                <div className="text-xs text-indigo-200/80 font-medium">Estimated monthly infrastructure cost</div>
                 <div className="text-2xl font-black text-emerald-400">
                   {plan.profiles?.[plan.recommended_target]?.estimated_monthly_cost_inr
                     ? (plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.nominal === 0
                         ? '₹0 / month'
                         : `₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`)
                     : '₹0 / month'}
+                </div>
+                <div className="text-[10px] text-indigo-300/70 font-mono">
+                  Architecture estimate • Actual bill: Provider-controlled
                 </div>
               </div>
             </div>
@@ -668,6 +671,22 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pricing Disclaimer & Distinction Notice */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1.5">
+              <div className="flex items-center justify-between font-semibold text-slate-900">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Estimated monthly infrastructure cost</span>
+                </span>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                  Actual bill: Provider-controlled
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Actual charges may vary based on usage, network traffic, storage and provider pricing.
+              </p>
             </div>
           </div>
 

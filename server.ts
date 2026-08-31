@@ -408,30 +408,87 @@ async function startServer() {
   });
 
   // =========================================================================
-  // 4. Authoritative Health Check Execution
+  // 4. Authoritative Deployment Health Check Execution (Anti-SSRF Hardened)
+  // Maps: deploymentId -> Verified Service Record -> Server-Side Authoritative Probe
   // =========================================================================
   app.get('/api/deployments/:id/health', async (req, res) => {
-    let dep = deploymentsStore.get(req.params.id);
+    const requestedId = req.params.id;
+    let dep = deploymentsStore.get(requestedId);
     if (!dep) {
       const dbDeps = await getDeploymentsFromDb();
-      dep = dbDeps.find(d => d.id === req.params.id);
+      dep = dbDeps.find(d => 
+        d.id === requestedId || 
+        d.webServiceId === requestedId || 
+        d.webServiceName === requestedId ||
+        d.domain?.toLowerCase() === requestedId.toLowerCase()
+      );
     }
 
-    if (!dep || !dep.healthEndpoint) {
+    if (!dep) {
+      for (const d of deploymentsStore.values()) {
+        if (d.id === requestedId || d.webServiceId === requestedId || d.webServiceName === requestedId || d.domain?.toLowerCase() === requestedId.toLowerCase()) {
+          dep = d;
+          break;
+        }
+      }
+    }
+
+    if (!dep) {
       return res.status(404).json({
         healthy: false,
         statusCode: 404,
-        error: 'Deployment or health endpoint not found',
+        error: `Deployment record "${requestedId}" not found in authoritative registry`,
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    // Determine target health endpoint from verified deployment state
+    let targetHealthUrl = dep.healthEndpoint;
+    if (!targetHealthUrl && dep.serviceUrl) {
+      targetHealthUrl = `${dep.serviceUrl.replace(/\/+$/, '')}/api/health`;
+    } else if (!targetHealthUrl && dep.webServiceName) {
+      targetHealthUrl = `https://${dep.webServiceName}.onrender.com/api/health`;
+    }
+
+    if (!targetHealthUrl) {
+      return res.status(400).json({
+        healthy: false,
+        statusCode: 400,
+        error: 'Deployment does not contain an authoritative health endpoint',
+        checkedAt: new Date().toISOString()
+      });
+    }
+
+    // Strict Anti-SSRF Validation: target URL must resolve to localhost or official onrender.com domain
+    try {
+      const parsed = new URL(targetHealthUrl, 'http://localhost:3000');
+      const isLocalHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      const isRenderCloud = parsed.hostname.endsWith('.onrender.com');
+      const isAllowedAppDomain = Boolean(dep.domain && parsed.hostname.includes(dep.domain.toLowerCase()));
+
+      if (!isLocalHost && !isRenderCloud && !isAllowedAppDomain) {
+        return res.status(403).json({
+          healthy: false,
+          statusCode: 403,
+          error: `Health check target hostname "${parsed.hostname}" is not within authorized cloud domains (*.onrender.com or local sandbox)`,
+          checkedAt: new Date().toISOString()
+        });
+      }
+    } catch {
+      return res.status(400).json({
+        healthy: false,
+        statusCode: 400,
+        error: 'Invalid target health URL format',
         checkedAt: new Date().toISOString()
       });
     }
 
     const startTime = Date.now();
     try {
-      const response = await fetch(dep.healthEndpoint, {
+      const response = await fetch(targetHealthUrl, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(4500)
       });
       const latencyMs = Date.now() - startTime;
 
@@ -482,42 +539,6 @@ async function startServer() {
         latencyMs,
         checkedAt: new Date().toISOString(),
         error: err.message || 'Connection refused / service unreachable'
-      });
-    }
-  });
-
-  // Health Proxy for remote CORS-restricted endpoints
-  app.get('/api/render/health-proxy', async (req, res) => {
-    const targetUrl = req.query.url as string;
-    if (!targetUrl) {
-      return res.status(400).json({ error: 'Missing url query param' });
-    }
-
-    const startTime = Date.now();
-    try {
-      const response = await fetch(targetUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(4500)
-      });
-      const latencyMs = Date.now() - startTime;
-      const data = await response.json().catch(() => ({}));
-
-      return res.status(200).json({
-        healthy: response.ok,
-        statusCode: response.status,
-        latencyMs,
-        checkedAt: new Date().toISOString(),
-        details: data,
-        error: response.ok ? undefined : `Target returned HTTP ${response.status}`
-      });
-    } catch (err: any) {
-      return res.status(200).json({
-        healthy: false,
-        statusCode: 503,
-        latencyMs: Date.now() - startTime,
-        checkedAt: new Date().toISOString(),
-        error: err.message || 'Failed to reach remote URL'
       });
     }
   });

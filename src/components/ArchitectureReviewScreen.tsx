@@ -232,14 +232,17 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xs text-indigo-200/70">Estimated Infrastructure Cost</div>
+              <div className="text-right space-y-1">
+                <div className="text-xs text-indigo-200/80 font-medium">Estimated monthly infrastructure cost</div>
                 <div className="text-2xl font-black text-emerald-400">
                   {plan.profiles?.[plan.recommended_target]?.estimated_monthly_cost_inr
                     ? (plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.nominal === 0
                         ? '₹0 / month'
                         : `₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.min.toLocaleString('en-IN')}–₹${plan.profiles[plan.recommended_target].estimated_monthly_cost_inr.max.toLocaleString('en-IN')}/mo`)
                     : '₹0 / month'}
+                </div>
+                <div className="text-[10px] text-indigo-300/70 font-mono">
+                  Architecture estimate • Actual bill: Provider-controlled
                 </div>
               </div>
             </div>
@@ -565,16 +568,21 @@ export const ArchitectureReviewScreen: React.FC<ArchitectureReviewScreenProps> =
             </div>
 
             {/* Assumptions Footnote */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
-              <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Cost Model Assumptions & Usage Guardrails:</span>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-2">
+              <div className="flex items-center justify-between font-bold text-slate-900">
+                <div className="flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Cost Model Assumptions & Governance Sizing:</span>
+                </div>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-normal">
+                  Actual bill: Provider-controlled
+                </span>
               </div>
               <p>• Estimated Monthly Requests: <strong className="text-slate-900">{currentProfile.assumptions.monthly_requests}</strong></p>
               <p>• Provisioned Storage: <strong className="text-slate-900">{currentProfile.assumptions.storage_gb} GB</strong> with <strong className="text-slate-900">{currentProfile.assumptions.backup_frequency}</strong></p>
               <p>• Target Region: <strong className="text-slate-900">{currentProfile.assumptions.region}</strong></p>
-              <p className="text-[11px] text-slate-500 italic mt-1">
-                *Actual cloud provider invoices may vary based on exact bandwidth egress, burst CPU usage, and regional tax policies.
+              <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
+                Actual charges may vary based on usage, network traffic, storage and provider pricing.
               </p>
             </div>
 
