@@ -35,7 +35,7 @@ const KNOWN_PACKAGE_LICENSES: Record<string, string> = {
  */
 export class FloeSbomGenerator {
   readonly version = '1.0.0';
-  readonly toolName = 'Floe CycloneDX SBOM Generator';
+  readonly toolName = 'Floe CycloneDX SBOM Generator (Built-in)';
 
   public async generate(files: GeneratedFile[], domain: string): Promise<{ result: EvaluationExecutionResult; sbom: SbomReport }> {
     const startedAt = new Date().toISOString();

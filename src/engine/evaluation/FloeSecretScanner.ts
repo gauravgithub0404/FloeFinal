@@ -8,7 +8,7 @@ import { computeSha256 } from '../../utils/cryptoHelper';
  */
 export class FloeSecretScanner {
   readonly version = '1.0.0';
-  readonly toolName = 'Floe Secret & High-Entropy Scanner';
+  readonly toolName = 'Floe Secret Scanner (Built-in High-Entropy Detector)';
 
   public async scan(files: GeneratedFile[]): Promise<EvaluationExecutionResult> {
     const startedAt = new Date().toISOString();

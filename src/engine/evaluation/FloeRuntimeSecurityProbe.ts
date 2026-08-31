@@ -7,7 +7,7 @@ import { computeSha256 } from '../../utils/cryptoHelper';
  */
 export class FloeRuntimeSecurityProbe {
   readonly version = '1.0.0';
-  readonly toolName = 'Floe Dynamic Runtime Security Probe (DAST Heuristics)';
+  readonly toolName = 'Floe Dynamic Runtime Security Probe (Built-in DAST)';
 
   public async scan(targetUrl: string): Promise<EvaluationExecutionResult> {
     const startedAt = new Date().toISOString();

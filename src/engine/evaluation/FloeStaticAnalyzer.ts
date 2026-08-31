@@ -9,7 +9,7 @@ import { computeSha256 } from '../../utils/cryptoHelper';
  */
 export class FloeStaticAnalyzer {
   readonly version = '1.0.0';
-  readonly toolName = 'Floe Static Security Analyzer (Built-in SAST Ruleset)';
+  readonly toolName = 'Floe SAST (Built-in Static Analyzer)';
 
   public async scan(files: GeneratedFile[]): Promise<EvaluationExecutionResult> {
     const startedAt = new Date().toISOString();
