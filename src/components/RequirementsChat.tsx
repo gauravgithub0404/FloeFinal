@@ -4,9 +4,12 @@ import { DomainDefinition, IntermediateRepresentation, ConversationMessage } fro
 import { RequirementProfile, UserCountBracket, ApplicationCriticality, DataSensitivity, AvailabilityRequirement, DeploymentProfileOption } from '../types/architecture';
 import { DEFAULT_REQUIREMENT_PROFILE, generateArchitecturePlan } from '../engine/architecturePlanner';
 import { validateIR } from '../engine/irValidator';
+import { AppLogoBadge } from './AppLogoBadge';
+import { BrandingEditorModal } from './BrandingEditorModal';
 import { 
   Sparkles, Send, CheckCircle2, ArrowRight, Layers, Bot, User, 
-  Users, TrendingUp, ShieldCheck, Database, DollarSign, Sliders, MessageSquare, Check, Server
+  Users, TrendingUp, ShieldCheck, Database, DollarSign, Sliders, MessageSquare, Check, Server,
+  Edit3, Image, Upload, Smile, Palette
 } from 'lucide-react';
 
 interface RequirementsChatProps {
@@ -15,6 +18,8 @@ interface RequirementsChatProps {
   initialDomainId?: string;
   isDevMode?: boolean;
 }
+
+const QUICK_LOGO_PRESETS = ['🌴', '🏖️', '💳', '🧾', '🎧', '💻', '🏢', '🚀', '🛡️', '📋', '⚡', '🎯', '📊', '🌿'];
 
 export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   onCompleteIR,
@@ -32,6 +37,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>(initialDomain.default_ir);
   const [isTyping, setIsTyping] = useState(false);
+  const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Requirement Profile State (First-Class Architecture Dimension)
@@ -39,6 +45,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
 
   // Form builder local fields
   const [formAppName, setFormAppName] = useState(initialDomain.default_ir.name);
+  const [formLogo, setFormLogo] = useState(initialDomain.default_ir.logo || '🌴');
   const [formDefaultBal, setFormDefaultBal] = useState('20');
   const [formTimeoutHours, setFormTimeoutHours] = useState('48');
 
@@ -46,16 +53,17 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   const QUESTIONS_SEQUENCE = [
     {
       id: 'step_name_scope',
-      question: `What is the name and primary purpose of your **${selectedDomain.display_name}** application?`,
+      question: `🎨 **Step 1: Application Name & Brand Identity**\nWhat would you like to **name your application**, and which **logo / icon** should represent it?`,
       suggestions: [
         `${selectedDomain.display_name} Core Portal`,
         `Enterprise ${selectedDomain.display_name} Hub`,
-        `Global Operations & Audit Center`
+        `Acme Global ${selectedDomain.display_name}`,
+        `Modern ${selectedDomain.display_name} Studio`
       ]
     },
     {
       id: 'step_user_count',
-      question: `**How many total users** do you expect will be registered in the system?`,
+      question: `👥 **Step 2: Total User Base**\nHow many **total registered users** do you expect will use the application?`,
       suggestions: [
         '1–10 Users (Small Team)',
         '11–50 Users (Growing Org)',
@@ -66,7 +74,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
     },
     {
       id: 'step_concurrency',
-      question: `How many users are expected to use the application **at the exact same time** (Peak Concurrency)?`,
+      question: `⚡ **Step 3: Peak Concurrency**\nHow many users are expected to use the application **at the exact same time**?`,
       suggestions: [
         '5–10 concurrent users',
         '25–30 concurrent users',
@@ -76,7 +84,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
     },
     {
       id: 'step_growth',
-      question: `What is your expected **user growth over the next 12 months**?`,
+      question: `📈 **Step 4: Scale & Growth**\nWhat is your expected **user growth over the next 12 months**?`,
       suggestions: [
         '2x growth (e.g. 500 users in 12m)',
         '3x–5x rapid scale',
@@ -85,7 +93,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
     },
     {
       id: 'step_criticality_data',
-      question: `How critical is this application and what type of data will it store?`,
+      question: `🛡️ **Step 5: Data Sensitivity & SLA**\nHow critical is this application and what type of data will it store?`,
       suggestions: [
         'Internal business data (Confidential HR/Operations)',
         'Development / Team Demo prototype',
@@ -95,12 +103,12 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
     },
     {
       id: 'step_target_pref',
-      question: `Where should this application run?`,
+      question: `🚀 **Step 6: Hosting Target**\nWhere should this application run in production?`,
       suggestions: [
         '⭐ Let Floe recommend based on scale & cost',
-        'Deploy to Laptop 2 (gaurav - Private Tailscale)',
         'Amazon Web Services (AWS)',
-        'Enterprise On-Premises Server'
+        'Enterprise On-Premises Server',
+        'Deploy to Laptop 2 (gaurav - Private Tailscale)'
       ]
     }
   ];
@@ -108,14 +116,25 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   // Initialize on domain change
   useEffect(() => {
     const q1 = QUESTIONS_SEQUENCE[0];
-    setCandidateIr(selectedDomain.default_ir);
-    setFormAppName(selectedDomain.default_ir.name);
+    const defaultLogo = selectedDomain.id.includes('leave') ? '🌴' : 
+                        selectedDomain.id.includes('expense') ? '💳' : 
+                        selectedDomain.id.includes('equipment') ? '💻' : 
+                        selectedDomain.id.includes('service') ? '🎧' : '🏢';
+    
+    const initialIr = {
+      ...selectedDomain.default_ir,
+      logo: selectedDomain.default_ir.logo || defaultLogo
+    };
+
+    setCandidateIr(initialIr);
+    setFormAppName(initialIr.name);
+    setFormLogo(defaultLogo);
     setCurrentStepIndex(0);
     setMessages([
       {
         id: 'msg-init',
         role: 'assistant',
-        content: `Hi! I'm your **Floe Requirements & Architecture Agent**.\n\nLet's configure your **${selectedDomain.display_name}** application and synthesize the optimal infrastructure cost model.\n\n${q1.question}`,
+        content: `Hi! I'm your **Floe Requirements & Architecture Agent**.\n\nLet's configure your **${selectedDomain.display_name}** application, define your logo & branding, and compile your database.\n\n${q1.question}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         suggestedReplies: q1.suggestions
       }
@@ -125,6 +144,39 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  const handleUpdateBranding = (newName: string, newLogo: string) => {
+    setCandidateIr(prev => ({
+      ...prev,
+      name: newName,
+      logo: newLogo
+    }));
+    setFormAppName(newName);
+    setFormLogo(newLogo);
+
+    const userMsg: ConversationMessage = {
+      id: `msg-brand-${Date.now()}`,
+      role: 'user',
+      content: `Updated app branding: **${newName}** (Logo: ${newLogo.startsWith('data:') ? 'Custom Upload' : newLogo})`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages(prev => [
+      ...prev, 
+      userMsg,
+      {
+        id: `msg-brand-ack-${Date.now()}`,
+        role: 'assistant',
+        content: `✅ Perfect! Application brand configured as **${newName}** with updated visual logo.\n\nNow, how many **total registered users** do you expect in the system?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestedReplies: QUESTIONS_SEQUENCE[1].suggestions
+      }
+    ]);
+
+    if (currentStepIndex === 0) {
+      setCurrentStepIndex(1);
+    }
+  };
 
   const handleSendMessage = (text: string) => {
     if (!text.trim()) return;
@@ -195,9 +247,9 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
       nextReq.availability = 'under_1_hour';
     }
 
-    // Handle name
-    if (currentStepIndex === 0 && text.length > 3 && !text.includes('1–10')) {
-      nextIr.name = text.length > 50 ? text.substring(0, 50) : text;
+    // Handle name input on step 0
+    if (currentStepIndex === 0 && text.length > 2 && !text.includes('1–10')) {
+      nextIr.name = text.length > 60 ? text.substring(0, 60) : text;
       setFormAppName(nextIr.name);
     }
 
@@ -224,14 +276,13 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
         ]);
       } else {
         const plan = generateArchitecturePlan(nextIr, nextReq);
-        const recProfile = plan.profiles?.[plan.recommended_target] || plan.profiles?.['aws'] || plan.profiles?.['on_prem'] || Object.values(plan.profiles || {})[0];
         
         setMessages(prev => [
           ...prev,
           {
             id: `msg-complete-${Date.now()}`,
             role: 'assistant',
-            content: `🎉 **Application Blueprint & Specifications Ready!**\n\nBased on your domain and requirements for **${nextIr.name}**:\n\n• **🧪 Test Environment**: **Free Sandbox (₹0 Cost)** — Deploy instantly to verify database tables, workflow state changes, and role permissions.\n• **🚀 Production Deployment**: Ready for promotion (AWS, Azure, GCP, or On-Premises) with real-time cost analysis when you decide to go live!\n• **Database Architecture**: **PostgreSQL 15 (ACID Relational)** with ${nextIr.entities.length} tables & strict foreign key governance.\n\nClick **"Review & Launch Free Testbed"** on the right to review schemas and start testing!`,
+            content: `🎉 **Application Blueprint & Specifications Ready!**\n\nApp Identity: **${nextIr.name}**\n\n• **🧪 Test Environment**: **Free Sandbox (₹0 Cost)** — Deploy instantly to verify database tables, workflow state changes, and role permissions.\n• **🚀 Production Deployment**: Ready for promotion (AWS, Azure, GCP, or On-Premises) with real-time cost analysis when you decide to go live!\n• **Database Architecture**: **PostgreSQL 15 (ACID Relational)** with ${nextIr.entities.length} tables & strict foreign key governance.\n\nClick **"Review & Launch Free Testbed"** on the right to review schemas and start testing!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             suggestedReplies: [
               'Review & Launch Free Testbed 🚀',
@@ -255,7 +306,6 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   };
 
   const currentPlan = candidateIr.architecture_plan || generateArchitecturePlan(candidateIr, reqProfile);
-  const recOption = currentPlan.profiles?.[currentPlan.recommended_target] || currentPlan.profiles?.['aws'] || currentPlan.profiles?.['on_prem'] || Object.values(currentPlan.profiles || {})[0];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -263,8 +313,8 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">STEP 1 OF 3: REQUIREMENTS & SPECIFICATIONS</span>
-          <h2 className="text-xl font-bold text-slate-900">Define Scope & Business Workflows</h2>
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">STEP 1 OF 3: REQUIREMENTS & BRANDING</span>
+          <h2 className="text-xl font-bold text-slate-900">Define App Name, Logo & Business Workflows</h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -285,6 +335,14 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
           </div>
 
           <button
+            onClick={() => setIsBrandingModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition-colors"
+          >
+            <Palette className="w-3.5 h-3.5" />
+            <span>Customize Logo & Name</span>
+          </button>
+
+          <button
             onClick={onCancel}
             className="text-xs font-semibold text-slate-500 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
@@ -297,9 +355,9 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Left Column: Requirements Chat / Interactive Questions */}
-        <div className="lg:col-span-7 flex flex-col bg-white rounded-2xl border border-slate-200 p-5 shadow-xs h-[640px] justify-between">
+        <div className="lg:col-span-7 flex flex-col bg-white rounded-2xl border border-slate-200 p-5 shadow-xs h-[660px] justify-between">
           
-          <div className="overflow-y-auto space-y-4 pr-2 max-h-[480px]">
+          <div className="overflow-y-auto space-y-4 pr-2 max-h-[500px]">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -314,7 +372,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                 )}
 
                 <div
-                  className={`p-3.5 rounded-2xl max-w-[85%] space-y-2.5 ${
+                  className={`p-3.5 rounded-2xl max-w-[88%] space-y-2.5 ${
                     msg.role === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-slate-50 text-slate-800 border border-slate-200 rounded-bl-none'
@@ -322,13 +380,59 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                 >
                   <div className="whitespace-pre-line">{msg.content}</div>
 
+                  {/* Interactive Branding Card in Chat for Step 0 */}
+                  {msg.id === 'msg-init' && (
+                    <div className="mt-3 p-3.5 bg-white rounded-xl border border-indigo-200/80 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AppLogoBadge logo={candidateIr.logo} name={candidateIr.name} domain={candidateIr.domain} size="md" />
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-indigo-600 block">Selected Brand Identity</span>
+                            <span className="text-xs font-bold text-slate-900">{candidateIr.name}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setIsBrandingModalOpen(true)}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold shadow-xs transition-colors flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Change Logo & Name</span>
+                        </button>
+                      </div>
+
+                      {/* Quick Icon Selector Row */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <span className="text-[10px] font-semibold text-slate-500 block mb-1.5">Pick a quick logo icon:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {QUICK_LOGO_PRESETS.map((icon, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setCandidateIr(prev => ({ ...prev, logo: icon }));
+                                setFormLogo(icon);
+                              }}
+                              className={`w-8 h-8 rounded-lg text-sm flex items-center justify-center transition-all border ${
+                                candidateIr.logo === icon
+                                  ? 'bg-indigo-50 border-indigo-500 scale-110 shadow-xs'
+                                  : 'bg-slate-50 border-slate-200 hover:border-slate-400'
+                              }`}
+                            >
+                              {icon}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {msg.suggestedReplies && msg.suggestedReplies.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-slate-200/60">
                       {msg.suggestedReplies.map((reply, rIdx) => (
                         <button
                           key={rIdx}
                           onClick={() => {
-                            if (reply.includes('Review Architecture') || reply.includes('Review Blueprint')) {
+                            if (reply.includes('Review & Launch Free Testbed') || reply.includes('Review Architecture') || reply.includes('Review Blueprint')) {
                               handleProceedToReview();
                             } else {
                               handleSendMessage(reply);
@@ -354,7 +458,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
             {isTyping && (
               <div className="flex items-center gap-2 text-xs text-slate-400 pl-10">
                 <Sparkles className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                <span>Synthesizing requirements & calculating cloud cost model...</span>
+                <span>Synthesizing requirements & compiling blueprint...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -369,11 +473,19 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
               }}
               className="flex items-center gap-2"
             >
+              <button
+                type="button"
+                onClick={() => setIsBrandingModalOpen(true)}
+                title="Edit App Name & Logo"
+                className="p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200 transition-colors shrink-0"
+              >
+                <Palette className="w-4 h-4" />
+              </button>
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="e.g. 250 registered users, 30 peak concurrent, confidential HR data..."
+                placeholder={currentStepIndex === 0 ? "Type your app name (e.g. Acme Global Leave & PTO)..." : "e.g. 250 registered users, 30 peak concurrent, confidential HR data..."}
                 className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
               />
               <button
@@ -388,7 +500,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
         </div>
 
         {/* Right Column: Live Architecture & Cost Preview Card */}
-        <div className="lg:col-span-5 flex flex-col bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm h-[640px] text-slate-100 justify-between">
+        <div className="lg:col-span-5 flex flex-col bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm h-[660px] text-slate-100 justify-between">
           
           <div className="space-y-4">
             {/* Header */}
@@ -396,7 +508,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-400" />
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                  Architecture & Cost Plan (Live)
+                  Architecture & Branding (Live)
                 </span>
               </div>
 
@@ -430,8 +542,26 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
 
             {/* Visual Preview */}
             {previewTab === 'visual' && (
-              <div className="space-y-3 overflow-y-auto max-h-[460px] pr-1">
+              <div className="space-y-3 overflow-y-auto max-h-[480px] pr-1">
                 
+                {/* Brand Identity Card */}
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <AppLogoBadge logo={candidateIr.logo} name={candidateIr.name} domain={candidateIr.domain} size="md" />
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">Application Identity</span>
+                      <h4 className="text-xs font-bold text-white truncate">{candidateIr.name}</h4>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsBrandingModalOpen(true)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold transition-colors shrink-0 flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3 h-3 text-indigo-400" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+
                 {/* Free Sandbox Badge Card */}
                 <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-600/50 space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -487,7 +617,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
 
             {/* Architecture & Cost Model Tab */}
             {previewTab === 'architecture' && (
-              <div className="space-y-3 overflow-y-auto max-h-[460px] pr-1 text-xs">
+              <div className="space-y-3 overflow-y-auto max-h-[480px] pr-1 text-xs">
                 <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -518,7 +648,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
 
             {/* Raw JSON AST */}
             {previewTab === 'json' && (
-              <div className="overflow-y-auto bg-slate-950 rounded-xl p-3 font-mono text-[11px] text-slate-300 border border-slate-800 max-h-[460px]">
+              <div className="overflow-y-auto bg-slate-950 rounded-xl p-3 font-mono text-[11px] text-slate-300 border border-slate-800 max-h-[480px]">
                 <pre className="whitespace-pre-wrap">{JSON.stringify(candidateIr, null, 2)}</pre>
               </div>
             )}
@@ -540,6 +670,18 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
         </div>
 
       </div>
+
+      {/* Branding Editor Modal */}
+      <BrandingEditorModal
+        isOpen={isBrandingModalOpen}
+        onClose={() => setIsBrandingModalOpen(false)}
+        appName={candidateIr.name}
+        appLogo={candidateIr.logo}
+        domain={candidateIr.domain}
+        onSave={handleUpdateBranding}
+      />
+
     </div>
   );
 };
+

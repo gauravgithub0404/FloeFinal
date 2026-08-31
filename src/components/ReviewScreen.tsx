@@ -4,10 +4,13 @@ import { ArchitecturePlan, DeploymentTargetKey, RequirementProfile } from '../ty
 import { generateArchitecturePlan } from '../engine/architecturePlanner';
 import { validateIR } from '../engine/irValidator';
 import { WorkflowGraph } from './WorkflowGraph';
+import { AppLogoBadge } from './AppLogoBadge';
+import { BrandingEditorModal } from './BrandingEditorModal';
 import { 
   CheckCircle2, ArrowLeft, Cpu, Database, Shield, Zap, Sparkles, 
   UserCheck, Code, Edit3, ArrowRight, Server, Cloud, Globe, 
-  HelpCircle, DollarSign, Laptop, Check, Info, Users, TrendingUp, AlertTriangle
+  HelpCircle, DollarSign, Laptop, Check, Info, Users, TrendingUp, AlertTriangle,
+  Palette
 } from 'lucide-react';
 
 interface ReviewScreenProps {
@@ -24,6 +27,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   const [currentIr, setCurrentIr] = useState<IntermediateRepresentation>(ir);
   const [isEditingJson, setIsEditingJson] = useState(false);
   const [jsonText, setJsonText] = useState(JSON.stringify(ir, null, 2));
+  const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
 
   // Architecture Plan & Selected Target
   const initialPlan = ir.architecture_plan || generateArchitecturePlan(ir, ir.requirement_profile);
@@ -36,6 +40,16 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'testbed_preview' | 'overview' | 'workflow' | 'schema' | 'architecture_pricing' | 'json'>('testbed_preview');
 
   const validation: ValidationResult = validateIR(currentIr);
+
+  const handleUpdateBranding = (newName: string, newLogo: string) => {
+    const updated = {
+      ...currentIr,
+      name: newName,
+      logo: newLogo
+    };
+    setCurrentIr(updated);
+    setJsonText(JSON.stringify(updated, null, 2));
+  };
 
   const handleJsonChange = (val: string) => {
     setJsonText(val);
@@ -131,29 +145,54 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         </div>
       </div>
 
-      {/* Validation Banner */}
-      {validation.valid ? (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between text-xs text-emerald-800">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>
-              <b>Validated:</b> All {validation.summary.entityCount} entities, foreign keys, and {validation.summary.nodeCount} workflow graph nodes conform to IR v1.0 specifications.
-            </span>
+      {/* Validation Banner & App Identity Header */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        
+        {/* App Identity Banner */}
+        <div className="md:col-span-5 bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <AppLogoBadge logo={currentIr.logo} name={currentIr.name} domain={currentIr.domain} size="md" />
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block">App Identity</span>
+              <h3 className="text-sm font-bold text-slate-900 truncate">{currentIr.name}</h3>
+            </div>
           </div>
-          <span className="text-emerald-700 font-mono font-medium">Ready for ₹0 Free Testbed</span>
+          <button
+            onClick={() => setIsBrandingModalOpen(true)}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition-colors shrink-0"
+          >
+            <Palette className="w-3.5 h-3.5" />
+            <span>Edit Branding</span>
+          </button>
         </div>
-      ) : (
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800">
-          <b>Schema Validation Errors:</b>
-          <ul className="list-disc pl-5 mt-1 space-y-0.5">
-            {validation.errors.map((e, idx) => (
-              <li key={idx}>
-                <span className="font-mono text-rose-900">[{e.path}]</span>: {e.message}
-              </li>
-            ))}
-          </ul>
+
+        {/* Validation Banner */}
+        <div className="md:col-span-7">
+          {validation.valid ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between text-xs text-emerald-800">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">
+                  <b>Validated:</b> {validation.summary.entityCount} entities, foreign keys, & {validation.summary.nodeCount} workflow states.
+                </span>
+              </div>
+              <span className="text-emerald-700 font-mono font-medium shrink-0 ml-2">₹0 Free Testbed</span>
+            </div>
+          ) : (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800">
+              <b>Schema Validation Errors:</b>
+              <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                {validation.errors.map((e, idx) => (
+                  <li key={idx}>
+                    <span className="font-mono text-rose-900">[{e.path}]</span>: {e.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      )}
+
+      </div>
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 text-xs font-medium overflow-x-auto">
@@ -840,6 +879,16 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           <span>Approve & Launch Free Testbed</span>
         </button>
       </div>
+
+      {/* Branding Editor Modal */}
+      <BrandingEditorModal
+        isOpen={isBrandingModalOpen}
+        onClose={() => setIsBrandingModalOpen(false)}
+        appName={currentIr.name}
+        appLogo={currentIr.logo}
+        domain={currentIr.domain}
+        onSave={handleUpdateBranding}
+      />
 
     </div>
   );

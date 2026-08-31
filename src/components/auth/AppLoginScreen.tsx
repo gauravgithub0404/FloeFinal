@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthUser, PRESET_USERS, UserRole, RBAC_PERMISSIONS_REGISTRY } from '../../types/auth';
 import { IntermediateRepresentation } from '../../types/floe';
+import { AppLogoBadge } from '../AppLogoBadge';
 import { 
   Shield, Lock, Key, Mail, User, Check, ArrowRight, Sparkles, 
   Database, ShieldCheck, Eye, EyeOff, AlertCircle, RefreshCw, CheckCircle2,
@@ -71,14 +72,17 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
     <div className="min-h-[620px] bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
       
       {/* Top Security & Domain Header */}
-      <div className="w-full max-w-4xl mb-6 text-center space-y-2">
+      <div className="w-full max-w-4xl mb-6 text-center space-y-3 flex flex-col items-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-700/60 text-indigo-300 text-xs font-mono">
           <Shield className="w-3.5 h-3.5 text-indigo-400" />
           <span>RBAC Identity & Access Management • PostgreSQL 15 Session Store</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          {appName}
-        </h2>
+        <div className="flex items-center justify-center gap-3">
+          <AppLogoBadge logo={ir.logo} name={appName} domain={ir.domain} size="lg" />
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            {appName}
+          </h2>
+        </div>
         <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
           Sign in with your enterprise credentials or choose a pre-configured role persona to test permission scopes and workflow access.
         </p>

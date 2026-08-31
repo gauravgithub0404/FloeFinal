@@ -3,6 +3,7 @@ import { IntermediateRepresentation } from '../types/floe';
 import { LiveAppSandbox } from './LiveAppSandbox';
 import { ShareTestbedModal } from './ShareTestbedModal';
 import { getPublicTestbedUrl } from '../utils/urlHelper';
+import { AppLogoBadge } from './AppLogoBadge';
 import { 
   Globe, Database, Shield, Zap, ExternalLink, Copy, Check, 
   ArrowLeft, RefreshCw, Smartphone, Monitor, Tablet, Terminal,
@@ -113,10 +114,8 @@ export const StandaloneTestbed: React.FC<StandaloneTestbedProps> = ({
               </button>
             )}
 
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm font-black text-xs">
-                F
-              </div>
+            <div className="flex items-center gap-2.5">
+              <AppLogoBadge logo={ir.logo} name={appName} domain={ir.domain} size="sm" />
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm font-bold text-white tracking-tight">{appName}</h1>

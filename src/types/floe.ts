@@ -107,6 +107,8 @@ export interface IntermediateRepresentation {
   app_id: string;
   domain: string;
   name: string;
+  logo?: string; // Data URL, image URL, or emoji/icon representation
+  icon?: string;
   description?: string;
   created_from_conversation_id?: string;
   metadata?: Record<string, unknown>;
@@ -151,6 +153,7 @@ export interface FloeApp {
   domain_id: string;
   domain_key: string;
   name: string;
+  logo?: string;
   status: AppStatus;
   current_ir_version_id?: string;
   created_at: string;

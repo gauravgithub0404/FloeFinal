@@ -3,6 +3,7 @@ import { IntermediateRepresentation } from '../types/floe';
 import { AuthUser, PRESET_USERS, UserRole, checkPermission } from '../types/auth';
 import { AppLoginScreen } from './auth/AppLoginScreen';
 import { RbacMatrixViewer } from './auth/RbacMatrixViewer';
+import { AppLogoBadge } from './AppLogoBadge';
 import { 
   Play, Sparkles, CheckCircle2, XCircle, Clock, ShieldCheck, User, 
   ArrowRight, RefreshCw, Send, AlertCircle, Info, Database, Headset, 
@@ -545,9 +546,7 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
         {/* Left: App Identity & Navigation Mode Switcher */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-              <Play className="w-4 h-4" />
-            </div>
+            <AppLogoBadge logo={ir.logo} name={appName} domain={ir.domain} size="sm" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-white">{appName}</span>
