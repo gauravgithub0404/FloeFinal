@@ -56,8 +56,17 @@ export function getLocalTestbedUrl(domain: string = 'leave-management'): string 
 
 /**
  * Get Render Cloud Service URL (Deployed on Render.com)
+ * Points to the live Render deployment serving all testbeds
  */
 export function getRenderCloudUrl(domain: string = 'leave-management'): string {
+  const sanitizedDomain = encodeURIComponent((domain || 'app').toLowerCase());
+  return `https://floe-leave-management.onrender.com/?testbed=${sanitizedDomain}`;
+}
+
+/**
+ * Get Render Dedicated Subdomain URL
+ */
+export function getRenderDedicatedDomainUrl(domain: string = 'leave-management'): string {
   const sanitizedDomain = (domain || 'app').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30);
   return `https://floe-${sanitizedDomain}.onrender.com`;
 }
