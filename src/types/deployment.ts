@@ -35,7 +35,7 @@ export interface ResourceLimits {
 export interface DeploymentStatus {
   id: string;
   appId: string;
-  providerId: 'render' | 'on_prem' | 'aws' | 'azure' | 'gcp';
+  providerId: 'render' | 'on_prem' | 'aws' | 'azure' | 'gcp' | 'testbed';
   stage: DeploymentStage;
   status: 'idle' | 'building' | 'deploying' | 'healthy' | 'failed' | 'stopped';
   webServiceId?: string;

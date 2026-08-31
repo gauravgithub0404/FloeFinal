@@ -42,18 +42,61 @@ export const LEAVE_MANAGEMENT_IR: IntermediateRepresentation = {
   roles: [
     {
       name: 'employee',
-      description: 'Standard staff member',
-      permissions: ['create:LeaveRequest own', 'read:LeaveRequest own', 'read:Employee own']
+      displayName: 'Employee (Requester)',
+      description: 'Standard staff member. Submits time-off requests and monitors personal PTO balance.',
+      permissions: ['create:LeaveRequest own', 'read:LeaveRequest own', 'read:Employee own'],
+      userPersona: {
+        name: 'Alex Rivera',
+        email: 'alex.rivera@acme.corp',
+        password: 'AlexLeave#2026',
+        roleTitle: 'Software Engineer',
+        department: 'Engineering & Product',
+        avatar: 'AR',
+        balance: 14,
+        totalAllowance: 20
+      }
     },
     {
       name: 'manager',
-      description: 'Team lead with approval authority',
-      permissions: ['read:LeaveRequest team', 'update:LeaveRequest.status team', 'read:Employee team']
+      displayName: 'Department Manager',
+      description: 'Team lead with approval authority. Authorizes or rejects leave requests within 48h SLA.',
+      permissions: ['read:LeaveRequest team', 'update:LeaveRequest.status team', 'read:Employee team'],
+      userPersona: {
+        name: 'Marcus Vance',
+        email: 'marcus.vance@acme.corp',
+        password: 'MarcusManager$2026',
+        roleTitle: 'Engineering Director & Approver',
+        department: 'Engineering Leadership',
+        avatar: 'MV'
+      }
     },
     {
       name: 'hr_admin',
-      description: 'Human Resources escalated authority',
-      permissions: ['read:LeaveRequest all', 'update:LeaveRequest.status all', 'read:Employee all', 'update:Employee.leave_balance_days all']
+      displayName: 'HR & People Operations',
+      description: 'Human Resources escalated authority. Handles 48h timeout escalations, balance audits, and policies.',
+      permissions: ['read:LeaveRequest all', 'update:LeaveRequest.status all', 'read:Employee all', 'update:Employee.leave_balance_days all'],
+      userPersona: {
+        name: 'Sophia Sterling',
+        email: 'sophia.sterling@acme.corp',
+        password: 'SophiaHR!2026',
+        roleTitle: 'VP of People & HR Operations',
+        department: 'People & Culture',
+        avatar: 'SS'
+      }
+    },
+    {
+      name: 'admin',
+      displayName: 'System Admin / CISO',
+      description: 'Chief Information Security Officer. Database DDL access, audit trails, and platform governance.',
+      permissions: ['read:all', 'update:all', 'admin:ddl', 'admin:audit'],
+      userPersona: {
+        name: 'Elena Rostova',
+        email: 'elena.rostova@acme.corp',
+        password: 'AdminElena!2026',
+        roleTitle: 'Chief Information Security Officer (CISO)',
+        department: 'InfoSec & Infrastructure',
+        avatar: 'ER'
+      }
     }
   ],
   workflows: [
@@ -194,9 +237,64 @@ export const EXPENSE_MANAGEMENT_IR: IntermediateRepresentation = {
     { from: 'ExpenseClaim', field: 'employee_id', to: 'Employee', cardinality: 'many-to-one' }
   ],
   roles: [
-    { name: 'submitter', permissions: ['create:ExpenseClaim own', 'read:ExpenseClaim own'] },
-    { name: 'manager', permissions: ['read:ExpenseClaim team', 'update:ExpenseClaim.status team'] },
-    { name: 'finance', permissions: ['read:ExpenseClaim all', 'update:ExpenseClaim.status all'] }
+    {
+      name: 'submitter',
+      displayName: 'Claim Submitter',
+      description: 'Field consultant / staff member uploading receipts and claiming business travel expenses.',
+      permissions: ['create:ExpenseClaim own', 'read:ExpenseClaim own'],
+      userPersona: {
+        name: 'David Kim',
+        email: 'david.kim@acme.corp',
+        password: 'DavidExp#2026',
+        roleTitle: 'Senior Solutions Consultant',
+        department: 'Client Solutions & Sales',
+        avatar: 'DK',
+        balance: 850,
+        totalAllowance: 5000
+      }
+    },
+    {
+      name: 'manager',
+      displayName: 'Department Budget Approver',
+      description: 'Reviews claims against team budget caps, checks receipts, and authorizes payout.',
+      permissions: ['read:ExpenseClaim team', 'update:ExpenseClaim.status team'],
+      userPersona: {
+        name: 'Rachel Green',
+        email: 'rachel.green@acme.corp',
+        password: 'RachelBudget$2026',
+        roleTitle: 'VP of Commercial Operations',
+        department: 'Commercial Leadership',
+        avatar: 'RG'
+      }
+    },
+    {
+      name: 'finance',
+      displayName: 'Finance & Compliance Auditor',
+      description: 'Corporate Finance. Audits AI policy flags, duplicates, and initiates wire reimbursements.',
+      permissions: ['read:ExpenseClaim all', 'update:ExpenseClaim.status all', 'audit:policy all'],
+      userPersona: {
+        name: 'Siddharth Nair',
+        email: 'siddharth.nair@acme.corp',
+        password: 'FinanceAudit!2026',
+        roleTitle: 'Senior Financial Controller',
+        department: 'Treasury & Accounts Payable',
+        avatar: 'SN'
+      }
+    },
+    {
+      name: 'admin',
+      displayName: 'ERP Platform Administrator',
+      description: 'Global Finance System Administrator. Manages ERP connectors, audit logs, and security governance.',
+      permissions: ['read:all', 'update:all', 'admin:ddl', 'admin:audit'],
+      userPersona: {
+        name: 'Elena Rostova',
+        email: 'elena.rostova@acme.corp',
+        password: 'AdminElena!2026',
+        roleTitle: 'Chief Information Security Officer (CISO)',
+        department: 'InfoSec & ERP Infrastructure',
+        avatar: 'ER'
+      }
+    }
   ],
   workflows: [
     {
@@ -346,18 +444,59 @@ export const IT_SERVICE_DESK_IR: IntermediateRepresentation = {
   roles: [
     {
       name: 'employee',
-      description: 'Standard staff requester',
-      permissions: ['create:ITTicket own', 'read:ITTicket own', 'create:TicketComment own']
+      displayName: 'Employee (Requester)',
+      description: 'Staff member creating IT incident tickets, diagnostic attachments, and tracking SLA resolution.',
+      permissions: ['create:ITTicket own', 'read:ITTicket own', 'create:TicketComment own'],
+      userPersona: {
+        name: 'Alex Rivera',
+        email: 'alex.rivera@acme.corp',
+        password: 'AlexTech#2026',
+        roleTitle: 'Software Engineer',
+        department: 'Engineering & Product',
+        avatar: 'AR'
+      }
     },
     {
       name: 'service_desk_agent',
-      description: 'Tier 1/2 IT Support Specialist',
-      permissions: ['read:ITTicket all', 'update:ITTicket.status all', 'update:ITTicket.assigned_agent_id all', 'create:TicketComment all']
+      displayName: 'Tier 2 Support Specialist',
+      description: 'Service desk operator. Investigates root causes, triages priority, updates status, and adds technical notes.',
+      permissions: ['read:ITTicket all', 'update:ITTicket.status all', 'update:ITTicket.assigned_agent_id all', 'create:TicketComment all'],
+      userPersona: {
+        name: 'Sarah Chen',
+        email: 'sarah.chen@acme.corp',
+        password: 'AgentSarah$2026',
+        roleTitle: 'Tier 2 Support Engineer',
+        department: 'IT Service Operations',
+        avatar: 'SC'
+      }
     },
     {
       name: 'it_manager',
-      description: 'IT Operations & SLA Compliance Lead',
-      permissions: ['read:ITTicket all', 'update:ITTicket all', 'delete:ITTicket all', 'read:ServiceDeskAgent all']
+      displayName: 'IT Operations Lead',
+      description: 'Service Desk Manager. Manages SLA adherence, queue re-assignment, and high-impact access approvals.',
+      permissions: ['read:ITTicket all', 'update:ITTicket all', 'delete:ITTicket all', 'read:ServiceDeskAgent all'],
+      userPersona: {
+        name: 'Marcus Vance',
+        email: 'marcus.vance@acme.corp',
+        password: 'ManagerMarcus@2026',
+        roleTitle: 'Director of IT Infrastructure',
+        department: 'IT & Cloud Operations',
+        avatar: 'MV'
+      }
+    },
+    {
+      name: 'admin',
+      displayName: 'CISO / Platform Admin',
+      description: 'Chief Information Security Officer. Database DDL access, audit trails, and zero-trust policy management.',
+      permissions: ['read:all', 'update:all', 'admin:ddl', 'admin:audit'],
+      userPersona: {
+        name: 'Elena Rostova',
+        email: 'elena.rostova@acme.corp',
+        password: 'AdminElena!2026',
+        roleTitle: 'Chief Information Security Officer (CISO)',
+        department: 'InfoSec & Infrastructure',
+        avatar: 'ER'
+      }
     }
   ],
   workflows: [
@@ -474,8 +613,48 @@ export const IT_EQUIPMENT_IR: IntermediateRepresentation = {
     { from: 'EquipmentRequest', field: 'employee_id', to: 'Employee', cardinality: 'many-to-one' }
   ],
   roles: [
-    { name: 'requester', permissions: ['create:EquipmentRequest own', 'read:EquipmentRequest own'] },
-    { name: 'it_manager', permissions: ['read:EquipmentRequest all', 'update:EquipmentRequest.status all'] }
+    {
+      name: 'requester',
+      displayName: 'Hardware Requester',
+      description: 'Staff member requesting workstations, monitors, laptops, and peripheral kits.',
+      permissions: ['create:EquipmentRequest own', 'read:EquipmentRequest own'],
+      userPersona: {
+        name: 'Chloe Bennett',
+        email: 'chloe.bennett@acme.corp',
+        password: 'ChloeDev#2026',
+        roleTitle: 'Lead UX Designer',
+        department: 'Product & Design',
+        avatar: 'CB'
+      }
+    },
+    {
+      name: 'it_manager',
+      displayName: 'IT Procurement Manager',
+      description: 'Hardware Asset Manager. Evaluates vendor inventory, quotes, and approves deliveries.',
+      permissions: ['read:EquipmentRequest all', 'update:EquipmentRequest.status all'],
+      userPersona: {
+        name: 'Liam Scott',
+        email: 'liam.scott@acme.corp',
+        password: 'LiamProcure$2026',
+        roleTitle: 'IT Procurement & Asset Lead',
+        department: 'IT Asset Management',
+        avatar: 'LS'
+      }
+    },
+    {
+      name: 'admin',
+      displayName: 'Asset & Platform Admin',
+      description: 'Global Asset Administrator. Oversees depreciation models, serial registry, and compliance.',
+      permissions: ['read:all', 'update:all', 'admin:ddl', 'admin:audit'],
+      userPersona: {
+        name: 'Elena Rostova',
+        email: 'elena.rostova@acme.corp',
+        password: 'AdminElena!2026',
+        roleTitle: 'Chief Information Security Officer (CISO)',
+        department: 'InfoSec & Asset Registry',
+        avatar: 'ER'
+      }
+    }
   ],
   workflows: [
     {

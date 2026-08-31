@@ -255,7 +255,7 @@ export const FloePipelineDashboard: React.FC<FloePipelineDashboardProps> = ({
             }`}
           >
             <FileCode className="w-3.5 h-3.5" />
-            <span>Syft CycloneDX SBOM</span>
+            <span>Floe CycloneDX SBOM</span>
           </button>
 
           <button
@@ -369,7 +369,7 @@ export const FloePipelineDashboard: React.FC<FloePipelineDashboardProps> = ({
             {selectedStageId === 'stage_4_testing' && selectedStage.testResults && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-300">Test Execution Breakdown (Vitest + Playwright)</span>
+                  <span className="font-bold text-slate-300">Contract & State Machine Verification</span>
                   <span className="text-emerald-400 font-mono">100% Pass Rate</span>
                 </div>
                 <div className="space-y-1.5">
@@ -442,28 +442,28 @@ export const FloePipelineDashboard: React.FC<FloePipelineDashboardProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                   <div className="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                    <span className="text-slate-400">IR Validation:</span>
+                    <span className="text-slate-400">IR Specification:</span>
                     <span className="text-emerald-400 font-bold">PASS</span>
                   </div>
                   <div className="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                    <span className="text-slate-400">Unit & API Tests:</span>
-                    <span className="text-emerald-400 font-bold">PASS (6/6)</span>
+                    <span className="text-slate-400">Contract Tests:</span>
+                    <span className="text-emerald-400 font-bold">PASS</span>
                   </div>
                   <div className="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                    <span className="text-slate-400">Semgrep SAST:</span>
+                    <span className="text-slate-400">Floe SAST:</span>
                     <span className="text-emerald-400 font-bold">PASS (0 Vuln)</span>
                   </div>
                   <div className="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                    <span className="text-slate-400">Gitleaks Secrets:</span>
+                    <span className="text-slate-400">Secret Scanner:</span>
                     <span className="text-emerald-400 font-bold">PASS (0 Leaked)</span>
                   </div>
                   <div className="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                    <span className="text-slate-400">Trivy Dependencies:</span>
+                    <span className="text-slate-400">Dep Scanner:</span>
                     <span className="text-emerald-400 font-bold">PASS (0 Crit/High)</span>
                   </div>
                   <div className="p-2 rounded bg-slate-900 border border-slate-800 flex justify-between">
-                    <span className="text-slate-400">Syft SBOM:</span>
-                    <span className="text-emerald-400 font-bold">ATTACHED (42 pkgs)</span>
+                    <span className="text-slate-400">CycloneDX SBOM:</span>
+                    <span className="text-emerald-400 font-bold">ATTACHED</span>
                   </div>
                 </div>
               </div>

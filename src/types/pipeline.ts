@@ -20,7 +20,7 @@ export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
 export interface SecurityFinding {
   id: string;
-  tool: 'Semgrep' | 'Trivy' | 'Gitleaks' | 'Dependency' | 'OWASP ZAP' | 'Devzy';
+  tool: 'Floe SAST' | 'Floe Container' | 'Floe Secret' | 'Floe DAST' | 'Semgrep' | 'Trivy' | 'Gitleaks' | 'Dependency' | 'OWASP ZAP' | 'Devzy' | string;
   category: 'SAST' | 'Container' | 'Secret' | 'Dependency' | 'DAST' | 'Compliance';
   severity: SeverityLevel;
   ruleId: string;
@@ -77,6 +77,7 @@ export interface GovernancePolicyConfig {
 }
 
 export interface GovernanceResult {
+  gateType?: 'GATE_A_PRE_TEST' | 'GATE_B_PRODUCTION_PROMOTION';
   decision: 'PASS' | 'REVIEW' | 'BLOCK';
   reasons: string[];
   policyVersion: string;
@@ -90,7 +91,9 @@ export interface GovernanceResult {
     lowFindings: number;
     testPassRatePct: number;
     sbomPresent: boolean;
-    dastClean: boolean;
+    dastClean?: boolean;
+    testbedHealthy?: boolean;
+    testbedLatencyMs?: number;
   };
 }
 
@@ -138,9 +141,12 @@ export interface PipelineInstance {
   currentStageId: PipelineStageId;
   policyConfig: GovernancePolicyConfig;
   governanceDecision?: GovernanceResult;
+  gateADecision?: GovernanceResult;
+  gateBDecision?: GovernanceResult;
   stages: Record<PipelineStageId, PipelineStageResult>;
   evidenceStore: Record<string, PipelineEvidenceItem>;
   artifact: {
+    sourceArtifactDigest?: string;
     imageDigest?: string;
     imageTag?: string;
     registryUrl?: string;
@@ -155,7 +161,7 @@ export interface PipelineInstance {
 
 // Pluggable Provider Registry Architecture
 export interface PluggableProviderInfo {
-  category: 'SAST' | 'ContainerScanner' | 'SecretScanner' | 'DependencyScanner' | 'DAST' | 'TestRunner' | 'SBOMGenerator' | 'ExternalValidator';
+  category: 'SAST' | 'ContainerScanner' | 'SecretScanner' | 'DependencyScanner' | 'DAST' | 'TestRunner' | 'SBOMGenerator' | 'ExternalValidator' | 'DeploymentProvider';
   activeProvider: string;
   isOptional?: boolean;
   availableProviders: Array<{
@@ -165,4 +171,3 @@ export interface PluggableProviderInfo {
     status: ToolStatus;
   }>;
 }
-

@@ -1,5 +1,6 @@
 import { PipelineEvidenceItem, PipelineStageId, GovernanceResult, GovernancePolicyConfig } from '../../types/pipeline';
 import { EvaluationExecutionResult } from './types';
+import { computeSha256 } from '../../utils/cryptoHelper';
 
 /**
  * Authoritative Evidence & Attestation Recorder
@@ -24,22 +25,17 @@ export class EvidenceStore {
         findings: result.findings,
         rawArtifact: result.rawArtifact
       },
-      hash: result.artifactHash,
+      hash: result.artifactHash || computeSha256(JSON.stringify(result.rawArtifact || result.findings)),
       timestamp: result.completedAt
     };
 
-    this.evidence[stageId] = item;
+  this.evidence[stageId] = item;
     return item;
   }
 
   public recordRaw(stageId: PipelineStageId | string, type: string, payload: any): PipelineEvidenceItem {
     const rawStr = JSON.stringify(payload);
-    let hashNum = 0;
-    for (let i = 0; i < rawStr.length; i++) {
-      hashNum = ((hashNum << 5) - hashNum) + rawStr.charCodeAt(i);
-      hashNum |= 0;
-    }
-    const hash = `sha256:${Math.abs(hashNum).toString(16).padStart(16, '0')}`;
+    const hash = computeSha256(rawStr);
 
     const item: PipelineEvidenceItem = {
       stageId: stageId as PipelineStageId,

@@ -5,21 +5,41 @@ import {
   DeploymentStage,
   DeploymentProvider 
 } from '../../types/deployment';
+import { LocalMockProvider } from './LocalMockProvider';
 import { RenderTestProvider } from './RenderTestProvider';
 import { OnPremDeploymentProvider } from './OnPremDeploymentProvider';
 
 export class DeploymentManager {
-  private testProvider: RenderTestProvider;
+  private localMockProvider: LocalMockProvider;
+  private renderProvider: RenderTestProvider;
   private onPremProvider: OnPremDeploymentProvider;
+  private activeTestProvider: 'local_mock' | 'render' = 'local_mock';
   private currentTestDeployment: DeploymentStatus | null = null;
 
   constructor() {
-    this.testProvider = new RenderTestProvider();
+    this.localMockProvider = new LocalMockProvider();
+    this.renderProvider = new RenderTestProvider();
     this.onPremProvider = new OnPremDeploymentProvider();
   }
 
-  getTestProvider(): RenderTestProvider {
-    return this.testProvider;
+  setTestProvider(provider: 'local_mock' | 'render') {
+    this.activeTestProvider = provider;
+  }
+
+  getTestProviderType(): 'local_mock' | 'render' {
+    return this.activeTestProvider;
+  }
+
+  getLocalMockProvider(): LocalMockProvider {
+    return this.localMockProvider;
+  }
+
+  getRenderProvider(): RenderTestProvider {
+    return this.renderProvider;
+  }
+
+  getActiveTestProvider(): DeploymentProvider {
+    return this.activeTestProvider === 'render' ? this.renderProvider : this.localMockProvider;
   }
 
   getOnPremProvider(): OnPremDeploymentProvider {
@@ -28,9 +48,12 @@ export class DeploymentManager {
 
   async launchTestEnvironment(
     request: DeploymentRequest,
-    onProgress?: (stage: DeploymentStage, log: string, status: DeploymentStatus) => void
+    onProgress?: (stage: DeploymentStage, log: string, status: DeploymentStatus) => void,
+    targetProvider?: 'local_mock' | 'render'
   ): Promise<DeploymentStatus> {
-    const deployment = await this.testProvider.createTestEnvironment(request, onProgress);
+    const providerKey = targetProvider || this.activeTestProvider;
+    const provider = providerKey === 'render' ? this.renderProvider : this.localMockProvider;
+    const deployment = await provider.createTestEnvironment(request, onProgress);
     this.currentTestDeployment = deployment;
     return deployment;
   }
@@ -40,11 +63,12 @@ export class DeploymentManager {
   }
 
   async verifyHealth(id?: string): Promise<HealthStatus> {
+    const provider = this.getActiveTestProvider();
     if (id) {
-      return this.testProvider.healthCheck(id);
+      return provider.healthCheck(id);
     }
     if (this.currentTestDeployment) {
-      return this.testProvider.healthCheck(this.currentTestDeployment.id);
+      return provider.healthCheck(this.currentTestDeployment.id);
     }
     return {
       healthy: false,

@@ -25,10 +25,23 @@ export interface Relationship {
   cardinality: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
 }
 
+export interface RoleUserCredential {
+  name: string;
+  email: string;
+  password?: string;
+  roleTitle: string;
+  department: string;
+  avatar?: string;
+  balance?: number;
+  totalAllowance?: number;
+}
+
 export interface Role {
   name: string;
+  displayName?: string;
   description?: string;
   permissions: string[];
+  userPersona?: RoleUserCredential;
 }
 
 export interface ExpressionAST {

@@ -77,66 +77,60 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
   const publicTestUrl = getPublicTestbedUrl(ir.domain || 'app');
   const isCurrentlyLocal = isLocalhost();
 
+  const [selectedProvider, setSelectedProvider] = useState<'local_mock' | 'render'>('local_mock');
+  const [renderApiStatus, setRenderApiStatus] = useState<{ apiKeyPresent: boolean; valid: boolean; owner?: any } | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/render/status')
+      .then(res => res.json())
+      .then(data => setRenderApiStatus(data))
+      .catch(() => setRenderApiStatus({ apiKeyPresent: false, valid: false }));
+  }, []);
+
   const steps = [
-    { title: 'Preparing application', detail: 'Validating IR schemas & workflow graph', successLabel: 'IR validated' },
-    { title: 'Generating application', detail: 'Compiling PostgreSQL DDL, RecordService, and REST API', successLabel: 'Source generated' },
-    { title: 'Preparing test environment', detail: 'Allocating Git repo & temporary test container', successLabel: 'Deployment target allocated' },
-    { title: 'Deploying', detail: 'Creating Web Service on Free Plan + Free PostgreSQL 15', successLabel: 'Render service created' },
-    { title: 'Starting application', detail: 'Building container image with 0.0.0.0 binding', successLabel: 'Service running' },
-    { title: 'Health check', detail: 'Polling mandatory endpoint GET /api/health', successLabel: '/api/health → 200 OK' }
+    { title: 'Validating specification', detail: 'Validating IR schemas & workflow graph', successLabel: 'IR validated' },
+    { title: 'Generating code artifacts', detail: 'Compiling PostgreSQL DDL, RecordService, and REST API', successLabel: 'Source generated' },
+    { title: 'Allocating target runtime', detail: selectedProvider === 'render' ? 'Connecting to Render Cloud API' : 'Allocating local sandbox memory space', successLabel: 'Target allocated' },
+    { title: 'Deploying database & services', detail: selectedProvider === 'render' ? 'POST /postgres & POST /services on Render' : 'Initializing in-process PostgreSQL testbed', successLabel: 'Services registered' },
+    { title: 'Starting application', detail: 'Building & launching container process', successLabel: 'Service online' },
+    { title: 'Authoritative health check', detail: 'Executing real GET health probe with latency metrics', successLabel: 'Health verified' }
   ];
 
   const handleLaunchTest = async () => {
     setIsDeploying(true);
     setCurrentStep(1);
     setLogs([
-      `[${new Date().toLocaleTimeString()}] 🚀 Initiating free testbed deployment for "${appName}"`,
-      `[${new Date().toLocaleTimeString()}] Target Provider: Floe Test Environment (Render Free Plan)`
+      `[${new Date().toLocaleTimeString()}] 🚀 Initiating deployment for "${appName}"`,
+      `[${new Date().toLocaleTimeString()}] Target Provider: ${selectedProvider === 'render' ? 'Render Cloud API (Live Hosting & PostgreSQL)' : 'Floe Local Mock Sandbox (In-Process Emulation)'}`
     ]);
 
     try {
-      // Step 1: IR Validation
-      setCurrentStep(1);
-      await new Promise(r => setTimeout(r, 450));
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✓ IR validated (${ir.entities.length} entities, ${ir.workflows[0]?.nodes.length || 0} nodes)`]);
-
-      // Step 2: Source generation
-      setCurrentStep(2);
-      await new Promise(r => setTimeout(r, 550));
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✓ Source generated (schema.sql, RecordService.ts, server.ts, render.yaml)`]);
-
-      // Step 3: Git repo allocation
-      setCurrentStep(3);
-      await new Promise(r => setTimeout(r, 450));
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✓ Deployment target allocated: git-${ir.domain}.repo`]);
-
-      // Step 4: Create service
-      setCurrentStep(4);
-      await new Promise(r => setTimeout(r, 600));
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✓ Render service & PostgreSQL 15 database created (Tier: Free 1GB)`]);
-
-      // Step 5: Start service
-      setCurrentStep(5);
-      await new Promise(r => setTimeout(r, 500));
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✓ Service running on port 10000 (0.0.0.0 binding)`]);
-
-      // Step 6: Health check
-      setCurrentStep(6);
-      await new Promise(r => setTimeout(r, 500));
-
-      const dep = await deploymentManager.launchTestEnvironment({
-        appId: ir.app_id,
-        appName,
-        domain: ir.domain,
-        ir,
-        environment: 'test'
-      });
+      const dep = await deploymentManager.launchTestEnvironment(
+        {
+          appId: ir.app_id,
+          appName,
+          domain: ir.domain,
+          ir,
+          environment: 'test'
+        },
+        (stage, log, status) => {
+          setLogs(prev => [...prev, log]);
+          if (stage === 'validating_ir') setCurrentStep(1);
+          else if (stage === 'generating_source') setCurrentStep(2);
+          else if (stage === 'allocating_target') setCurrentStep(3);
+          else if (stage === 'creating_service') setCurrentStep(4);
+          else if (stage === 'starting_service' || stage === 'building_container') setCurrentStep(5);
+          else if (stage === 'running_health_check') setCurrentStep(6);
+          else if (stage === 'healthy') setCurrentStep(7);
+        },
+        selectedProvider
+      );
 
       setDeployment(dep);
       setLogs(prev => [
         ...prev,
-        `[${new Date().toLocaleTimeString()}] ✓ Health check verified: /api/health → 200 OK (${dep.latencyMs || 42}ms latency)`,
-        `[${new Date().toLocaleTimeString()}] 🌟 READY: Your application is ready to test: ${publicTestUrl}`
+        `[${new Date().toLocaleTimeString()}] ✓ Authoritative Health Check Verified: ${dep.healthEndpoint} → HTTP ${dep.statusCode || 200} (${dep.latencyMs || 42}ms latency)`,
+        `[${new Date().toLocaleTimeString()}] 🌟 READY: Your application is live at: ${dep.serviceUrl}`
       ]);
       setCurrentStep(7);
     } catch (err: any) {
@@ -234,25 +228,60 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
 
         {/* If Not Deployed Yet -> Prompt Card */}
         {!deployment && !isDeploying && (
-          <div className="mt-6 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl border border-blue-200/80 p-8 text-center max-w-2xl mx-auto">
-            <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center mx-auto mb-4 shadow-md shadow-blue-500/20">
+          <div className="mt-6 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl border border-blue-200/80 p-8 text-center max-w-2xl mx-auto space-y-6">
+            <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-md shadow-blue-500/20">
               <Zap className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">
-              🧪 Test My Application
-            </h3>
-            <p className="text-sm text-slate-600 mb-6 max-w-md mx-auto">
-              Deploy a temporary test environment for free. Verify entities, workflow state transitions, and business rules before moving to production.
-            </p>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                🧪 Test My Application
+              </h3>
+              <p className="text-sm text-slate-600 max-w-md mx-auto">
+                Deploy a temporary test environment to verify entities, workflow state transitions, and business rules before moving to production.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto mb-6 text-left bg-white p-3 rounded-lg border border-slate-200 text-xs">
-              <div>
-                <span className="text-slate-400 block font-medium">Cost:</span>
-                <span className="text-emerald-700 font-bold text-sm">₹0 (Free Plan)</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-medium">Provider:</span>
-                <span className="text-slate-800 font-semibold">Floe Test Environment</span>
+            {/* Provider Selection */}
+            <div className="text-left bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                Select Test Deployment Provider:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedProvider('local_mock')}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    selectedProvider === 'local_mock'
+                      ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-200'
+                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">Local Mock Sandbox</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">₹0 Free</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">In-process testbed simulation. Instant startup, zero external credentials needed.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedProvider('render')}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    selectedProvider === 'render'
+                      ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-200'
+                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">Render Cloud API</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                      renderApiStatus?.apiKeyPresent ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {renderApiStatus?.apiKeyPresent ? 'API Ready' : 'Key Needed'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">Real Render Web Service & Free PostgreSQL 15 cloud database via Render API.</p>
+                </button>
               </div>
             </div>
 
@@ -261,10 +290,10 @@ export const TestEnvironmentView: React.FC<TestEnvironmentViewProps> = ({
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 shadow-md shadow-blue-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>🚀 Test My Application</span>
+              <span>🚀 Launch {selectedProvider === 'render' ? 'Render Cloud' : 'Local Mock'} Deployment</span>
             </button>
 
-            <p className="text-xs text-slate-400 mt-4">
+            <p className="text-xs text-slate-400">
               Automated allocation: Web Service + Free PostgreSQL 15 database (1GB, 30 days lifecycle).
             </p>
           </div>

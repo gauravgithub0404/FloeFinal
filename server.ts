@@ -16,7 +16,12 @@ import {
 import { 
   getRenderStatus, 
   listRenderServices, 
-  listRenderPostgresDatabases 
+  listRenderPostgresDatabases,
+  createRenderWebService,
+  createRenderPostgres,
+  triggerRenderDeploy,
+  getRenderService,
+  getRenderOwners
 } from './src/server/renderApi';
 
 // Server-side types
@@ -137,6 +142,75 @@ async function startServer() {
     }
   });
 
+  app.get('/api/render/owners', async (req, res) => {
+    try {
+      const owners = await getRenderOwners();
+      res.status(200).json({ owners });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/render/postgres', async (req, res) => {
+    try {
+      const { name, databaseName, databaseUser, plan, region } = req.body;
+      if (!name || !databaseName) {
+        return res.status(400).json({ error: 'Missing required field: name and databaseName' });
+      }
+      const postgres = await createRenderPostgres({
+        name,
+        databaseName,
+        databaseUser,
+        plan,
+        region
+      });
+      res.status(201).json({ postgres });
+    } catch (err: any) {
+      console.error('[Render API] Error in POST /api/render/postgres:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/render/services', async (req, res) => {
+    try {
+      const { name, repo, branch, envVars, plan, region, healthCheckPath } = req.body;
+      if (!name || !repo) {
+        return res.status(400).json({ error: 'Missing required field: name and repo' });
+      }
+      const service = await createRenderWebService({
+        name,
+        repo,
+        branch,
+        envVars,
+        plan,
+        region,
+        healthCheckPath
+      });
+      res.status(201).json({ service });
+    } catch (err: any) {
+      console.error('[Render API] Error in POST /api/render/services:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/render/services/:serviceId', async (req, res) => {
+    try {
+      const service = await getRenderService(req.params.serviceId);
+      res.status(200).json({ service });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/render/services/:serviceId/deploys', async (req, res) => {
+    try {
+      const deploy = await triggerRenderDeploy(req.params.serviceId, req.body?.clearCache === true);
+      res.status(200).json({ deploy });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // =========================================================================
   // 2. Asynchronous CI/CD Pipeline API Endpoints
   // =========================================================================
@@ -235,21 +309,26 @@ async function startServer() {
   // =========================================================================
   app.post('/api/deployments/create', async (req, res) => {
     try {
-      const { appId, appName, domain, ir, gitRepoUrl } = req.body;
+      const { appId, appName, domain, ir, gitRepoUrl, providerId, environment } = req.body;
       const sanitizedDomain = (domain || 'app').toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 30);
+      const chosenProvider: any = providerId || (environment === 'render' ? 'render' : 'testbed');
       const deploymentId = `dep_${sanitizedDomain}_${Date.now().toString(36)}`;
       const commitSha = `git-${crypto.createHash('sha256').update(JSON.stringify(ir || {}) + Date.now()).digest('hex').substring(0, 8)}`;
       
       const appUrlBase = process.env.APP_URL || `http://localhost:${PORT}`;
-      const serviceUrl = `${appUrlBase}/api/testbed/${sanitizedDomain}`;
-      const healthEndpoint = `${serviceUrl}/health`;
+      const serviceUrl = chosenProvider === 'render' 
+        ? `https://floe-${sanitizedDomain}.onrender.com`
+        : `${appUrlBase}/api/testbed/${sanitizedDomain}`;
+      const healthEndpoint = chosenProvider === 'render'
+        ? `${serviceUrl}/api/health`
+        : `${serviceUrl}/health`;
 
       const deployment: DeploymentRecord = {
         id: deploymentId,
         appId: appId || 'app-default',
         appName: appName || (ir ? ir.name : 'Business Application'),
         domain: sanitizedDomain,
-        providerId: 'render',
+        providerId: chosenProvider,
         stage: 'validating_ir',
         status: 'building',
         serviceUrl,
@@ -266,8 +345,8 @@ async function startServer() {
         },
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         logs: [
-          `[${new Date().toLocaleTimeString()}] [Floe Engine] Initializing deployment for ${appName || sanitizedDomain}...`,
-          `[${new Date().toLocaleTimeString()}] [Floe Engine] Target: Render PostgreSQL & Node Testbed (Active Health Endpoint: ${healthEndpoint})`
+          `[${new Date().toLocaleTimeString()}] [Floe Engine] Initializing test deployment for ${appName || sanitizedDomain}...`,
+          `[${new Date().toLocaleTimeString()}] [Floe Engine] Target Provider: ${chosenProvider === 'render' ? 'Render Cloud (Web Service & PostgreSQL)' : 'Local Mock Sandbox (Floe In-Process Emulation)'} (Endpoint: ${healthEndpoint})`
         ],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -451,9 +530,10 @@ async function startServer() {
     res.status(200).json({
       status: 'healthy',
       app: domain,
-      environment: 'Render PostgreSQL Managed Sandbox',
-      database: 'floe_f3rk connected',
-      database_type: 'PostgreSQL 15 (Oregon)',
+      provider: 'local_mock',
+      environment: 'Local Mock Sandbox (Floe In-Process Emulation)',
+      database: 'floe_local_store (PostgreSQL compatible)',
+      database_type: 'PostgreSQL 15 Local Testbed',
       uptime_seconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString()
     });
