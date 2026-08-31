@@ -69,6 +69,8 @@ export default function App() {
   const [selectedApp, setSelectedApp] = useState<FloeApp | null>(null);
   const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>(initialSetup.ir);
   const [targetDomainId, setTargetDomainId] = useState<string | undefined>(undefined);
+  const [targetAppName, setTargetAppName] = useState<string | undefined>(undefined);
+  const [targetAppLogo, setTargetAppLogo] = useState<string | undefined>(undefined);
 
   // Check URL parameters & Hostname changes dynamically
   useEffect(() => {
@@ -93,8 +95,10 @@ export default function App() {
   const [isInfraModalOpen, setIsInfraModalOpen] = useState(false);
 
   // Workflow Handlers
-  const handleStartNewApp = (domainId?: string) => {
+  const handleStartNewApp = (domainId?: string, appName?: string, appLogo?: string) => {
     setTargetDomainId(domainId);
+    setTargetAppName(appName);
+    setTargetAppLogo(appLogo);
     setCurrentView('chat');
   };
 
@@ -219,6 +223,8 @@ export default function App() {
           {currentView === 'chat' && (
             <RequirementsChat
               initialDomainId={targetDomainId}
+              initialAppName={targetAppName}
+              initialLogo={targetAppLogo}
               isDevMode={isDevMode}
               onCompleteIR={handleChatCompleteIR}
               onCancel={() => setCurrentView('dashboard')}

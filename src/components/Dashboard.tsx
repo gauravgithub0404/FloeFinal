@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FloeApp, GenerationRun, AgentExecution } from '../types/floe';
 import { Plus, Play, ArrowRight, ShieldCheck, Database, Layers, CheckCircle2, Clock, Sparkles, HelpCircle, Palmtree, Receipt, Laptop, Headset, Check } from 'lucide-react';
+import { NewAppPromptModal } from './NewAppPromptModal';
 
 interface DashboardProps {
   apps: FloeApp[];
   generationRuns: GenerationRun[];
   agentExecutions: AgentExecution[];
   onSelectApp: (app: FloeApp) => void;
-  onNewApp: (domainId?: string) => void;
+  onNewApp: (domainId?: string, appName?: string, appLogo?: string) => void;
   onOpenLiveDemo: (app: FloeApp) => void;
   onOpenHowItWorks: () => void;
   isDevMode: boolean;
@@ -23,6 +24,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenHowItWorks,
   isDevMode
 }) => {
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
+  const [selectedPromptDomainId, setSelectedPromptDomainId] = useState<string>('dom-leave');
+
+  const handleOpenPrompt = (domainId: string = 'dom-leave') => {
+    setSelectedPromptDomainId(domainId);
+    setIsPromptModalOpen(true);
+  };
+
+  const handlePromptSubmit = (appName: string, appLogo: string, domainId: string) => {
+    setIsPromptModalOpen(false);
+    onNewApp(domainId, appName, appLogo);
+  };
+
   const totalCost = agentExecutions.reduce((acc, curr) => acc + curr.estimated_cost, 0);
 
   return (
@@ -45,7 +59,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               id="dashboard-hero-new-app-btn"
-              onClick={() => onNewApp()}
+              onClick={() => handleOpenPrompt('dom-leave')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-md transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -86,7 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Starter 1: Leave & PTO */}
           <div
-            onClick={() => onNewApp('dom-leave')}
+            onClick={() => handleOpenPrompt('dom-leave')}
             className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
           >
             <div>
@@ -108,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Starter 2: Expense & Travel */}
           <div
-            onClick={() => onNewApp('dom-expense')}
+            onClick={() => handleOpenPrompt('dom-expense')}
             className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
           >
             <div>
@@ -130,7 +144,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Starter 3: IT Hardware Requisitions */}
           <div
-            onClick={() => onNewApp('dom-equipment')}
+            onClick={() => handleOpenPrompt('dom-equipment')}
             className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
           >
             <div>
@@ -152,7 +166,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Starter 4: IT Service Desk & SLA */}
           <div
-            onClick={() => onNewApp('dom-itsm')}
+            onClick={() => handleOpenPrompt('dom-itsm')}
             className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
           >
             <div>
@@ -233,7 +247,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <button
             id="dashboard-add-app-btn"
-            onClick={() => onNewApp()}
+            onClick={() => handleOpenPrompt('dom-leave')}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -252,14 +266,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
               <button
-                onClick={() => onNewApp('dom-leave')}
+                onClick={() => handleOpenPrompt('dom-leave')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-sm"
               >
                 <Palmtree className="w-4 h-4" />
                 <span>Build Time-Off App</span>
               </button>
               <button
-                onClick={() => onNewApp()}
+                onClick={() => handleOpenPrompt('dom-leave')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-300 text-xs font-semibold hover:bg-slate-50"
               >
                 <Plus className="w-4 h-4" />
@@ -330,6 +344,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Interactive App Name & Logo Prompt Modal */}
+      <NewAppPromptModal
+        isOpen={isPromptModalOpen}
+        onClose={() => setIsPromptModalOpen(false)}
+        initialDomainId={selectedPromptDomainId}
+        onSubmit={handlePromptSubmit}
+      />
+
     </div>
   );
 };

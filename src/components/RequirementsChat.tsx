@@ -16,6 +16,8 @@ interface RequirementsChatProps {
   onCompleteIR: (ir: IntermediateRepresentation) => void;
   onCancel: () => void;
   initialDomainId?: string;
+  initialAppName?: string;
+  initialLogo?: string;
   isDevMode?: boolean;
 }
 
@@ -25,6 +27,8 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   onCompleteIR,
   onCancel,
   initialDomainId,
+  initialAppName,
+  initialLogo,
   isDevMode = false
 }) => {
   const initialDomain = DOMAINS.find(d => d.id === initialDomainId) || DOMAINS[0];
@@ -35,7 +39,11 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>(initialDomain.default_ir);
+  const [candidateIr, setCandidateIr] = useState<IntermediateRepresentation>({
+    ...initialDomain.default_ir,
+    name: initialAppName || initialDomain.default_ir.name,
+    logo: initialLogo || initialDomain.default_ir.logo || '🌴'
+  });
   const [isTyping, setIsTyping] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -44,8 +52,8 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   const [reqProfile, setReqProfile] = useState<RequirementProfile>(DEFAULT_REQUIREMENT_PROFILE);
 
   // Form builder local fields
-  const [formAppName, setFormAppName] = useState(initialDomain.default_ir.name);
-  const [formLogo, setFormLogo] = useState(initialDomain.default_ir.logo || '🌴');
+  const [formAppName, setFormAppName] = useState(initialAppName || initialDomain.default_ir.name);
+  const [formLogo, setFormLogo] = useState(initialLogo || initialDomain.default_ir.logo || '🌴');
   const [formDefaultBal, setFormDefaultBal] = useState('20');
   const [formTimeoutHours, setFormTimeoutHours] = useState('48');
 
@@ -116,14 +124,15 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
   // Initialize on domain change
   useEffect(() => {
     const q1 = QUESTIONS_SEQUENCE[0];
-    const defaultLogo = selectedDomain.id.includes('leave') ? '🌴' : 
+    const defaultLogo = initialLogo || (selectedDomain.id.includes('leave') ? '🌴' : 
                         selectedDomain.id.includes('expense') ? '💳' : 
                         selectedDomain.id.includes('equipment') ? '💻' : 
-                        selectedDomain.id.includes('service') ? '🎧' : '🏢';
+                        selectedDomain.id.includes('service') ? '🎧' : '🏢');
     
     const initialIr = {
       ...selectedDomain.default_ir,
-      logo: selectedDomain.default_ir.logo || defaultLogo
+      name: initialAppName || selectedDomain.default_ir.name,
+      logo: defaultLogo
     };
 
     setCandidateIr(initialIr);
@@ -134,12 +143,12 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
       {
         id: 'msg-init',
         role: 'assistant',
-        content: `Hi! I'm your **Floe Requirements & Architecture Agent**.\n\nLet's configure your **${selectedDomain.display_name}** application, define your logo & branding, and compile your database.\n\n${q1.question}`,
+        content: `Hi! I'm your **Floe Requirements & Architecture Agent**.\n\nLet's configure your **${initialIr.name}** application, define your workflow rules, and compile your database.\n\n${q1.question}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         suggestedReplies: q1.suggestions
       }
     ]);
-  }, [selectedDomain]);
+  }, [selectedDomain, initialAppName, initialLogo]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -382,27 +391,47 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
 
                   {/* Interactive Branding Card in Chat for Step 0 */}
                   {msg.id === 'msg-init' && (
-                    <div className="mt-3 p-3.5 bg-white rounded-xl border border-indigo-200/80 shadow-xs space-y-3">
+                    <div className="mt-3 p-4 bg-white rounded-xl border border-indigo-200/90 shadow-sm space-y-3.5">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <AppLogoBadge logo={candidateIr.logo} name={candidateIr.name} domain={candidateIr.domain} size="md" />
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-indigo-600 block">Selected Brand Identity</span>
-                            <span className="text-xs font-bold text-slate-900">{candidateIr.name}</span>
-                          </div>
-                        </div>
+                        <span className="text-[11px] uppercase font-bold text-indigo-600 tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>App Identity & Branding</span>
+                        </span>
                         <button
                           onClick={() => setIsBrandingModalOpen(true)}
-                          className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold shadow-xs transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold border border-indigo-200 transition-colors flex items-center gap-1"
                         >
-                          <Edit3 className="w-3 h-3" />
-                          <span>Change Logo & Name</span>
+                          <Palette className="w-3 h-3" />
+                          <span>Full Branding Studio</span>
                         </button>
+                      </div>
+
+                      {/* App Name Direct Prompt Field */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold uppercase text-slate-700">
+                          Application Name
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={candidateIr.name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCandidateIr(prev => ({ ...prev, name: val }));
+                              setFormAppName(val);
+                            }}
+                            placeholder="Enter your application name..."
+                            className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-semibold focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-xs"
+                          />
+                        </div>
                       </div>
 
                       {/* Quick Icon Selector Row */}
                       <div className="pt-2 border-t border-slate-100">
-                        <span className="text-[10px] font-semibold text-slate-500 block mb-1.5">Pick a quick logo icon:</span>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-slate-600">Application Logo / Icon:</span>
+                          <span className="text-[10px] text-indigo-600 font-medium">Selected: {candidateIr.logo?.startsWith('data:') ? 'Custom Image' : candidateIr.logo}</span>
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                           {QUICK_LOGO_PRESETS.map((icon, idx) => (
                             <button
@@ -412,7 +441,7 @@ export const RequirementsChat: React.FC<RequirementsChatProps> = ({
                                 setCandidateIr(prev => ({ ...prev, logo: icon }));
                                 setFormLogo(icon);
                               }}
-                              className={`w-8 h-8 rounded-lg text-sm flex items-center justify-center transition-all border ${
+                              className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all border ${
                                 candidateIr.logo === icon
                                   ? 'bg-indigo-50 border-indigo-500 scale-110 shadow-xs'
                                   : 'bg-slate-50 border-slate-200 hover:border-slate-400'
