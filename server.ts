@@ -11,7 +11,10 @@ import {
   savePipelineRunToDb, 
   getPipelineRunsFromDb, 
   saveAppRecordToDb, 
-  getAppRecordsFromDb 
+  getAppRecordsFromDb,
+  saveAppToDb,
+  getAppFromDb,
+  getAllAppsFromDb
 } from './src/server/db';
 import { 
   getRenderStatus, 
@@ -21,7 +24,8 @@ import {
   createRenderPostgres,
   triggerRenderDeploy,
   getRenderService,
-  getRenderOwners
+  getRenderOwners,
+  DEFAULT_GIT_REPO
 } from './src/server/renderApi';
 
 // Server-side types
@@ -88,6 +92,57 @@ async function startServer() {
   // =========================================================================
   // 1. Authoritative Platform Health & Infrastructure Status
   // =========================================================================
+  app.get('/api/app-info', (req, res) => {
+    res.status(200).json({
+      domain: process.env.FLOE_APP_DOMAIN || '',
+      appName: process.env.FLOE_APP_NAME || '',
+      appId: process.env.FLOE_APP_ID || '',
+      gitRepoUrl: process.env.GIT_REPO_URL || DEFAULT_GIT_REPO,
+      renderUrl: process.env.RENDER_EXTERNAL_URL || '',
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  app.get('/api/apps', async (req, res) => {
+    try {
+      const apps = await getAllAppsFromDb();
+      res.status(200).json({ apps, count: apps.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/apps/:domainOrId', async (req, res) => {
+    try {
+      const appRecord = await getAppFromDb(req.params.domainOrId);
+      if (!appRecord) {
+        return res.status(404).json({ error: `Application "${req.params.domainOrId}" not found` });
+      }
+      res.status(200).json(appRecord);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/apps', async (req, res) => {
+    try {
+      const { id, name, domain, ir } = req.body;
+      if (!domain || !ir) {
+        return res.status(400).json({ error: 'Missing domain or ir in body' });
+      }
+      const appRecord = {
+        id: id || `app-${domain}-${Date.now().toString(36)}`,
+        name: name || ir.name || domain,
+        domain: domain.toLowerCase(),
+        ir
+      };
+      await saveAppToDb(appRecord);
+      res.status(201).json(appRecord);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/health', async (req, res) => {
     const [dbStatus, renderStatus] = await Promise.all([
       getDbStatus().catch(err => ({ connected: false, error: err.message })),
@@ -334,7 +389,7 @@ async function startServer() {
         serviceUrl,
         healthEndpoint,
         healthStatus: 'checking',
-        gitRepoUrl: gitRepoUrl || `https://github.com/floe-generated/${sanitizedDomain}.git`,
+        gitRepoUrl: gitRepoUrl || DEFAULT_GIT_REPO,
         gitCommitSha: commitSha,
         isFreeTier: true,
         resourceLimits: {
@@ -354,6 +409,16 @@ async function startServer() {
 
       deploymentsStore.set(deploymentId, deployment);
       await saveDeploymentToDb(deployment);
+
+      // Persist application definition & IR
+      if (ir) {
+        await saveAppToDb({
+          id: appId || `app-${sanitizedDomain}`,
+          name: appName || ir.name || sanitizedDomain,
+          domain: sanitizedDomain,
+          ir
+        });
+      }
 
       // Initialize testbed entities for this application
       if (ir && Array.isArray(ir.entities)) {

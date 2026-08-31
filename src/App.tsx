@@ -25,31 +25,42 @@ export default function App() {
 
       let targetDomain = testbedParam;
       
-      // Auto-detect domain if hostname or path is domain-specific (e.g. floe-leave-management.onrender.com)
+      // Auto-detect domain if hostname or path is domain-specific (e.g. floe-it-equipment-request.onrender.com)
       if (!targetDomain) {
-        if (hostname.includes('leave-management') || hostname.includes('leave') || pathname.startsWith('/leave')) {
-          targetDomain = 'leave-management';
+        const renderMatch = hostname.match(/^floe-([a-z0-9-]+)\.onrender\.com/i) || hostname.match(/^([a-z0-9-]+)\.onrender\.com/i);
+        if (renderMatch && renderMatch[1] && !renderMatch[1].startsWith('dashboard') && !renderMatch[1].startsWith('floe-studio')) {
+          targetDomain = renderMatch[1];
+        } else if (hostname.includes('equipment') || hostname.includes('hardware') || pathname.startsWith('/it-equipment') || pathname.startsWith('/equipment')) {
+          targetDomain = 'it-equipment-request';
         } else if (hostname.includes('expense') || pathname.startsWith('/expense')) {
-          targetDomain = 'expense-management';
-        } else if (hostname.includes('ticket') || hostname.includes('service') || pathname.startsWith('/it-service')) {
+          targetDomain = 'expense-reimbursement';
+        } else if (hostname.includes('ticket') || hostname.includes('service') || pathname.startsWith('/it-service') || pathname.startsWith('/service')) {
           targetDomain = 'it-service-desk';
-        } else if (hostname.includes('equipment') || hostname.includes('hardware') || pathname.startsWith('/it-equipment')) {
-          targetDomain = 'it-equipment';
+        } else if (hostname.includes('leave') || pathname.startsWith('/leave')) {
+          targetDomain = 'leave-management';
         }
       }
 
       if (targetDomain || params.get('mode') === 'testbed' || window.location.hash.includes('testbed')) {
         let chosenIr = LEAVE_MANAGEMENT_IR;
         if (targetDomain) {
-          const matched = DOMAINS.find(d => d.key === targetDomain || d.id === targetDomain || d.key.toLowerCase() === targetDomain.toLowerCase());
+          const normTarget = targetDomain.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const matched = DOMAINS.find(d => {
+            const normKey = d.key.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normId = d.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return normKey === normTarget || normId === normTarget || normKey.includes(normTarget) || normTarget.includes(normKey);
+          });
+
           if (matched?.default_ir) {
             chosenIr = matched.default_ir;
-          } else if (targetDomain.toLowerCase().includes('expense')) {
-            chosenIr = EXPENSE_MANAGEMENT_IR;
-          } else if (targetDomain.toLowerCase().includes('ticket') || targetDomain.toLowerCase().includes('service')) {
-            chosenIr = IT_SERVICE_DESK_IR;
           } else if (targetDomain.toLowerCase().includes('equipment') || targetDomain.toLowerCase().includes('hardware')) {
             chosenIr = IT_EQUIPMENT_IR;
+          } else if (targetDomain.toLowerCase().includes('expense') || targetDomain.toLowerCase().includes('reimburse')) {
+            chosenIr = EXPENSE_MANAGEMENT_IR;
+          } else if (targetDomain.toLowerCase().includes('ticket') || targetDomain.toLowerCase().includes('service') || targetDomain.toLowerCase().includes('helpdesk')) {
+            chosenIr = IT_SERVICE_DESK_IR;
+          } else if (targetDomain.toLowerCase().includes('leave') || targetDomain.toLowerCase().includes('pto')) {
+            chosenIr = LEAVE_MANAGEMENT_IR;
           }
         }
         return { view: 'standalone_testbed', ir: chosenIr };
@@ -72,15 +83,58 @@ export default function App() {
   const [targetAppName, setTargetAppName] = useState<string | undefined>(undefined);
   const [targetAppLogo, setTargetAppLogo] = useState<string | undefined>(undefined);
 
-  // Check URL parameters & Hostname changes dynamically
+  // Check URL parameters & Hostname changes dynamically & fetch server app config
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const initApp = async () => {
+      if (typeof window === 'undefined') return;
+
+      // 1. Check server-side config if deployed on Render or backend environment
+      try {
+        const infoRes = await fetch('/api/app-info');
+        if (infoRes.ok) {
+          const info = await infoRes.json();
+          if (info.domain) {
+            const domain = info.domain.toLowerCase();
+            const normDomain = domain.replace(/[^a-z0-9]/g, '');
+            const matched = DOMAINS.find(d => {
+              const normKey = d.key.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const normId = d.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return normKey === normDomain || normId === normDomain || normKey.includes(normDomain) || normDomain.includes(normKey);
+            });
+
+            if (matched?.default_ir) {
+              setCandidateIr(matched.default_ir);
+              setTargetAppName(info.appName || matched.display_name);
+              setCurrentView('standalone_testbed');
+              return;
+            }
+
+            // Check if there is a custom app in DB
+            const appRes = await fetch(`/api/apps/${domain}`);
+            if (appRes.ok) {
+              const appData = await appRes.json();
+              if (appData.ir) {
+                setCandidateIr(appData.ir);
+                setTargetAppName(appData.name || info.appName);
+                setCurrentView('standalone_testbed');
+                return;
+              }
+            }
+          }
+        }
+      } catch {
+        // Fall back to client detection
+      }
+
+      // 2. Client-side URL detection
       const setup = getInitialViewAndIr();
       if (setup.view === 'standalone_testbed') {
         setCandidateIr(setup.ir);
         setCurrentView('standalone_testbed');
       }
-    }
+    };
+
+    initApp();
   }, []);
 
   // Generation runs & audit state - starts empty

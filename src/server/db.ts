@@ -462,6 +462,83 @@ export async function saveAppRecordToDb(domain: string, entity: string, record: 
 }
 
 /**
+ * Save application metadata and IR to PostgreSQL
+ */
+export async function saveAppToDb(app: { id: string; name: string; domain: string; ir: any }): Promise<void> {
+  const pool = getPool();
+  try {
+    await pool.query(
+      `
+      INSERT INTO applications (id, name, domain, ir_json, updated_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        domain = EXCLUDED.domain,
+        ir_json = EXCLUDED.ir_json,
+        updated_at = NOW()
+      `,
+      [
+        app.id,
+        app.name,
+        app.domain.toLowerCase(),
+        JSON.stringify(app.ir)
+      ]
+    );
+  } catch (err: any) {
+    console.warn('[PostgreSQL] Could not persist application to DB:', err.message);
+  }
+}
+
+/**
+ * Get application by domain or ID from PostgreSQL
+ */
+export async function getAppFromDb(domainOrId: string): Promise<any | null> {
+  const pool = getPool();
+  try {
+    const res = await pool.query(
+      'SELECT * FROM applications WHERE id = $1 OR LOWER(domain) = $2 LIMIT 1',
+      [domainOrId, domainOrId.toLowerCase()]
+    );
+    if (res.rows.length > 0) {
+      const r = res.rows[0];
+      return {
+        id: r.id,
+        name: r.name,
+        domain: r.domain,
+        ir: r.ir_json,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      };
+    }
+    return null;
+  } catch (err: any) {
+    console.warn('[PostgreSQL] Could not read application from DB:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Get all applications from PostgreSQL
+ */
+export async function getAllAppsFromDb(): Promise<any[]> {
+  const pool = getPool();
+  try {
+    const res = await pool.query('SELECT * FROM applications ORDER BY updated_at DESC LIMIT 50');
+    return res.rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      domain: r.domain,
+      ir: r.ir_json,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    }));
+  } catch (err: any) {
+    console.warn('[PostgreSQL] Could not read applications from DB:', err.message);
+    return [];
+  }
+}
+
+/**
  * Get app records from PostgreSQL
  */
 export async function getAppRecordsFromDb(domain: string, entity: string): Promise<any[]> {

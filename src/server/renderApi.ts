@@ -85,12 +85,14 @@ async function callRenderApi<T>(endpoint: string, options: RequestInit = {}): Pr
   return res.json();
 }
 
+export const DEFAULT_GIT_REPO = 'https://github.com/gauravgithub0404/FloeFinal.git';
+
 /**
  * Create a new Web Service on Render via Render API
  */
 export async function createRenderWebService(params: {
   name: string;
-  repo: string;
+  repo?: string;
   branch?: string;
   envVars?: Array<{ key: string; value: string }>;
   plan?: string;
@@ -103,17 +105,36 @@ export async function createRenderWebService(params: {
     throw new Error('No Render workspace owner found for account');
   }
 
+  const cleanName = params.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32);
+  const targetRepo = params.repo || DEFAULT_GIT_REPO;
+
+  // 1. Check if a service with this name already exists in Render account
+  try {
+    const existingServices = await listRenderServices();
+    const matched = existingServices.find(s => 
+      s.name?.toLowerCase() === cleanName || 
+      s.name?.toLowerCase() === params.name.toLowerCase() ||
+      s.serviceDetails?.url?.toLowerCase().includes(cleanName)
+    );
+    if (matched) {
+      console.log(`[Render API] Found existing service "${matched.name}" (ID: ${matched.id}), reusing...`);
+      return matched;
+    }
+  } catch (err: any) {
+    console.warn('[Render API] Could not search existing services:', err.message);
+  }
+
   const payload = {
     type: 'web_service',
-    name: params.name,
+    name: cleanName,
     ownerId,
-    repo: params.repo,
+    repo: targetRepo,
     branch: params.branch || 'main',
     autoDeploy: 'yes',
     serviceDetails: {
       env: 'node',
       plan: params.plan || 'free',
-      region: params.region || 'singapore',
+      region: params.region || 'oregon',
       envSpecificDetails: {
         buildCommand: 'npm install && npm run build',
         startCommand: 'npm start'
@@ -126,12 +147,24 @@ export async function createRenderWebService(params: {
     }
   };
 
-  const res = await callRenderApi<{ service: RenderService }>('/services', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
-
-  return res.service;
+  try {
+    const res = await callRenderApi<{ service: RenderService }>('/services', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    return res.service;
+  } catch (err: any) {
+    // If creation threw an error (e.g. name conflict or quota), check again for existing service
+    const existingServices = await listRenderServices().catch(() => []);
+    const matched = existingServices.find(s => 
+      s.name?.toLowerCase() === cleanName || 
+      s.name?.toLowerCase() === params.name.toLowerCase()
+    );
+    if (matched) {
+      return matched;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -150,22 +183,52 @@ export async function createRenderPostgres(params: {
     throw new Error('No Render workspace owner found for account');
   }
 
+  const cleanName = params.name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 32);
+  const cleanDbName = params.databaseName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 32);
+
+  // 1. Check if a database with this name already exists
+  try {
+    const existingDatabases = await listRenderPostgresDatabases();
+    const matched = existingDatabases.find(d => 
+      d.name?.toLowerCase() === cleanName || 
+      d.databaseName?.toLowerCase() === cleanDbName ||
+      d.name?.toLowerCase() === params.name.toLowerCase()
+    );
+    if (matched) {
+      console.log(`[Render API] Found existing database "${matched.name}" (ID: ${matched.id}), reusing...`);
+      return matched;
+    }
+  } catch (err: any) {
+    console.warn('[Render API] Could not search existing databases:', err.message);
+  }
+
   const payload = {
-    name: params.name,
+    name: cleanName,
     ownerId,
-    databaseName: params.databaseName,
+    databaseName: cleanDbName,
     databaseUser: params.databaseUser || 'floe_user',
     plan: params.plan || 'free',
     region: params.region || 'oregon',
     version: '15'
   };
 
-  const res = await callRenderApi<{ postgres: RenderPostgres }>('/postgres', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
-
-  return res.postgres;
+  try {
+    const res = await callRenderApi<{ postgres: RenderPostgres }>('/postgres', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    return res.postgres;
+  } catch (err: any) {
+    const existingDatabases = await listRenderPostgresDatabases().catch(() => []);
+    const matched = existingDatabases.find(d => 
+      d.name?.toLowerCase() === cleanName || 
+      d.databaseName?.toLowerCase() === cleanDbName
+    );
+    if (matched) {
+      return matched;
+    }
+    throw err;
+  }
 }
 
 /**

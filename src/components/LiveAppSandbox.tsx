@@ -4,6 +4,8 @@ import { AuthUser, PRESET_USERS, UserRole, checkPermission } from '../types/auth
 import { AppLoginScreen } from './auth/AppLoginScreen';
 import { RbacMatrixViewer } from './auth/RbacMatrixViewer';
 import { AppLogoBadge } from './AppLogoBadge';
+import { EquipmentSandboxView } from './EquipmentSandboxView';
+import { ExpenseSandboxView } from './ExpenseSandboxView';
 import { 
   Play, Sparkles, CheckCircle2, XCircle, Clock, ShieldCheck, User, 
   ArrowRight, RefreshCw, Send, AlertCircle, Info, Database, Headset, 
@@ -205,7 +207,21 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
   const isItsm = ir.domain === 'it-service-desk' || 
     ir.name.toLowerCase().includes('service') || 
     ir.name.toLowerCase().includes('ticket') || 
-    ir.name.toLowerCase().includes('itsm');
+    ir.name.toLowerCase().includes('itsm') ||
+    ir.name.toLowerCase().includes('helpdesk');
+
+  const isEquipment = ir.domain === 'it-equipment-request' ||
+    ir.domain.toLowerCase().includes('equipment') ||
+    ir.name.toLowerCase().includes('equipment') ||
+    ir.name.toLowerCase().includes('hardware') ||
+    ir.name.toLowerCase().includes('gear') ||
+    ir.name.toLowerCase().includes('laptop');
+
+  const isExpense = ir.domain === 'expense-reimbursement' ||
+    ir.domain.toLowerCase().includes('expense') ||
+    ir.name.toLowerCase().includes('expense') ||
+    ir.name.toLowerCase().includes('reimburse') ||
+    ir.name.toLowerCase().includes('claim');
 
   // Authentication & RBAC State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -555,7 +571,13 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                {isItsm ? 'Service desk SLA routing, agent workflows & ticket lifecycle.' : 'PostgreSQL RecordService & Workflow Engine in-browser.'}
+                {isEquipment 
+                  ? 'Hardware inventory, role compatibility AI check & $500 procurement threshold.'
+                  : isExpense
+                  ? 'Expense claim audit, per-diem rules & automated reimbursement workflow.'
+                  : isItsm
+                  ? 'Service desk SLA routing, agent workflows & ticket lifecycle.'
+                  : 'PostgreSQL RecordService & Workflow Engine in-browser.'}
               </p>
             </div>
           </div>
@@ -1338,6 +1360,26 @@ export const LiveAppSandbox: React.FC<LiveAppSandboxProps> = ({ ir, onGoToProduc
               )
             )}
           </>
+        ) : isEquipment ? (
+          /* ========================================================= */
+          /* === IT EQUIPMENT & HARDWARE REQUISITION RUNTIME ========= */
+          /* ========================================================= */
+          <EquipmentSandboxView
+            ir={ir}
+            currentUser={currentUser}
+            activeRole={activeRole}
+            onSwitchRole={handleSwitchUserRole}
+          />
+        ) : isExpense ? (
+          /* ========================================================= */
+          /* === EXPENSE REIMBURSEMENT RUNTIME ======================= */
+          /* ========================================================= */
+          <ExpenseSandboxView
+            ir={ir}
+            currentUser={currentUser}
+            activeRole={activeRole}
+            onSwitchRole={handleSwitchUserRole}
+          />
         ) : (
           /* ========================================================= */
           /* === LEAVE MANAGEMENT & OTHER RUNTIMES =================== */

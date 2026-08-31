@@ -212,7 +212,7 @@ export class RenderTestProvider extends BaseDeploymentProvider {
     
     // Initial deterministic Render Cloud URL mapping
     const defaultRenderUrl = `https://${serviceName}.onrender.com`;
-    const gitRepoUrl = request.gitRepoUrl || `https://github.com/floe-generated/${sanitizedDomain}.git`;
+    const gitRepoUrl = request.gitRepoUrl || 'https://github.com/gauravgithub0404/FloeFinal.git';
     const gitCommitSha = `git-${(typeof crypto.randomUUID === 'function' ? crypto.randomUUID().replace(/-/g, '').slice(0, 8) : Date.now().toString(36))}`;
     const expiresAt = new Date(Date.now() + this.policy.maxDays * 24 * 60 * 60 * 1000).toISOString();
 
@@ -308,6 +308,23 @@ export class RenderTestProvider extends BaseDeploymentProvider {
 
       // Step 5: Provision Web Service on Render via createRenderWebService()
       logAndEmit('creating_service', `Step 5/8: Calling createRenderWebService() to create Web Service "${serviceName}" from repository ${gitRepoUrl}...`);
+      
+      // Persist app specification and IR to server database
+      try {
+        await fetch('/api/apps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: request.appId || `app-${sanitizedDomain}`,
+            name: request.appName || sanitizedDomain,
+            domain: sanitizedDomain,
+            ir: request.ir
+          })
+        });
+      } catch {
+        // Non-blocking sync
+      }
+
       const service = await this.provisionWebService({
         name: serviceName,
         repo: gitRepoUrl,
@@ -319,6 +336,8 @@ export class RenderTestProvider extends BaseDeploymentProvider {
           { key: 'NODE_ENV', value: 'production' },
           { key: 'PORT', value: '3000' },
           { key: 'FLOE_APP_DOMAIN', value: sanitizedDomain },
+          { key: 'FLOE_APP_NAME', value: request.appName || sanitizedDomain },
+          { key: 'FLOE_APP_ID', value: request.appId || 'app-default' },
           { key: 'FLOE_DB_ID', value: postgres.id || '' }
         ]
       });
