@@ -193,10 +193,13 @@ export interface Conversation {
 
 export interface DomainQuestion {
   id: string;
-  question: string;
-  placeholder: string;
-  category: 'scope' | 'entities' | 'workflow' | 'roles' | 'notifications';
-  suggestions: string[];
+  prompt?: string;
+  question?: string;
+  kind?: 'text' | 'choice';
+  options?: readonly string[] | string[];
+  placeholder?: string;
+  category?: 'scope' | 'entities' | 'workflow' | 'roles' | 'notifications' | 'scale' | 'reliability' | 'hosting' | 'budget';
+  suggestions?: string[];
   fieldMappingHint?: string;
 }
 
@@ -206,6 +209,19 @@ export interface DomainDefinition {
   display_name: string;
   icon: string;
   description: string;
+  /**
+   * Free-text signal words/phrases used by the NL intent matcher
+   * (src/engine/domainMatcher.ts) to score a user's plain-English request
+   * against this template. Keep these domain-specific and low-overlap with
+   * other templates so scoring stays meaningful.
+   */
+  keywords?: string[];
+  /**
+   * Human-readable list of key capabilities this template ships with out of
+   * the box (shown to the user in the template picker so they can see what
+   * they're getting before generating the app).
+   */
+  features?: string[];
   question_set: DomainQuestion[];
   default_ir: IntermediateRepresentation;
 }
